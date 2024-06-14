@@ -3,7 +3,7 @@ name: Upload non-GS Allo data From Sheet
 on:
   schedule:
     # Runs at 5:00 UTC every day
-    - cron:  '0 5 * * *'
+    - cron:  '5 20 * * *'
   workflow_dispatch:
 
 jobs:
