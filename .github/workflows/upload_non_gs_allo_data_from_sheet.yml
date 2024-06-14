@@ -25,7 +25,7 @@ jobs:
         python-version: '3.8'
     - name: Install dependencies
       run: |
-        pip install gspread pandas sqlalchemy oauth2client
+        pip install gspread pandas sqlalchemy oauth2client psycopg2-binary
     - name: Execute Python script
       run: python automations/upload_non_gs_allo_data.py
 
