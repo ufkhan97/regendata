@@ -27,6 +27,6 @@ jobs:
       run: |
         pip install gspread pandas sqlalchemy oauth2client
     - name: Execute Python script
-      run: python path/to/your_script.py
+      run: python automations/upload_non_gs_allo_data.py
 
 
