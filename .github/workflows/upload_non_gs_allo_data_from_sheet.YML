@@ -1,0 +1,29 @@
+name: Upload non-GS Allo data From Sheet
+
+on:
+  schedule:
+    # Runs at 5:00 UTC every day
+    - cron:  '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        pip install gspread pandas sqlalchemy oauth2client json
+
+    - name: Execute Python script
+      run: python automations/upload_non_gs_allo-data.py
+
+
