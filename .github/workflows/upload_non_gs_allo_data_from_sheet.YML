@@ -9,21 +9,24 @@ on:
 jobs:
   run-script:
     runs-on: ubuntu-latest
-
+    env:
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_Port }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: '3.8'
-
     - name: Install dependencies
       run: |
-        pip install gspread pandas sqlalchemy oauth2client json
-
+        pip install gspread pandas sqlalchemy oauth2client
     - name: Execute Python script
-      run: python automations/upload_non_gs_allo-data.py
+      run: python path/to/your_script.py
 
 

@@ -3,19 +3,18 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from sqlalchemy import create_engine
 import json
+import os
 
-# Load database credentials
-with open('grantsdb_credentials.json') as f:
-    creds = json.load(f)
-host = creds['DB_HOST']
-port = creds['DB_PORT']
-dbname = creds['DB_NAME']
-user = creds['DB_USER']
-password = creds['DB_PASSWORD']
+# Load database credentials from environment variables
+host = os.environ['DB_HOST']
+port = os.environ['DB_PORT']
+dbname = os.environ['DB_NAME']
+user = os.environ['DB_USER']
+password = os.environ['DB_PASSWORD']
 
-# Setup Google Sheets API & Authorize
-scope = ["https://spreadsheets.google.com/feeds",'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('regendata-ingestor-ac8b2979b4c0.json', scope)
+# Load Google credentials from environment variables
+google_creds_json = json.loads(os.environ['GOOGLE_CREDENTIALS'])  # Assumes JSON string
+creds = ServiceAccountCredentials.from_json_keyfile_dict(google_creds_json, ["https://spreadsheets.google.com/feeds",'https://www.googleapis.com/auth/drive'])
 client = gspread.authorize(creds)
 
 # Open the spreadsheet and get the first sheet
