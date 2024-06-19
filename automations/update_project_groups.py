@@ -85,7 +85,7 @@ indexer_query = '''
         chain_id != 11155111 ;
     '''
 # Set the minimum number of shared attributes required to draw an edge
-min_shared_attributes = 2  # Change this value as needed
+min_shared_attributes = 3  # Change this value as needed
 
 cgrants_data = run_query(cgrants_query)
 indexer_data = run_query(indexer_query)
