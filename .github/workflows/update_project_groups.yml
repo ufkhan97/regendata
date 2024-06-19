@@ -1,0 +1,31 @@
+name: Update Project Groupings
+
+on:
+  schedule:
+    # Runs at 5:00 UTC every day
+    - cron:  '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    env:
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_Port }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+    - name: Install dependencies
+      run: |
+        pip install pandas sqlalchemy psycopg2-binary networkx itertools collections
+    - name: Execute Python script
+      run: python automations/update_project_groups.py
+
+
