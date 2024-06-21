@@ -7,7 +7,7 @@ WITH gg_rounds AS (
       gg."round_name" AS "round_name",
       gg."round_id" AS "round_id"
     FROM
-      "public"."GrantsProgramRoundsOnGrantsStack" gg),
+      "GrantsProgramRoundsOnGrantsStack" gg),
 grants_stack_grants as (
     SELECT 
         gg."round_num",
