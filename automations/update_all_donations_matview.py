@@ -29,7 +29,8 @@ def execute_command(command, db_params):
 def update_all_donations_matview(db_params):
     """Create Materialized View for all donations."""
     logger.info(os.getcwd())
-    with open('queries/all_donations.sql', 'r') as file:
+    logger.info(os.listdir())
+    with open('automations/queries/all_donations.sql', 'r') as file:
         all_donations_query = file.read()
     create_command = f"""
                         DROP MATERIALIZED VIEW IF EXISTS all_donations;
