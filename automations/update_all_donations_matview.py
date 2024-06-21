@@ -32,7 +32,7 @@ def update_all_donations_matview(db_params):
     logger.info(os.listdir())
     with open('automations/queries/all_donations.sql', 'r') as file:
         all_donations_query = file.read()
-    logger.info(f"SQL Query (repr): {repr(all_donations_query)}")  # Log the raw query
+    all_donations_query = all_donations_query.replace("{db_name}", os.getenv('DB_NAME'))
     create_command = f"""
                         DROP MATERIALIZED VIEW IF EXISTS all_donations;
                         CREATE MATERIALIZED VIEW all_donations AS
