@@ -32,11 +32,13 @@ def update_all_donations_matview(db_params):
     logger.info(os.listdir())
     with open('automations/queries/all_donations.sql', 'r') as file:
         all_donations_query = file.read()
+    logger.info(f"SQL Query (repr): {repr(all_donations_query)}")  # Log the raw query
     create_command = f"""
                         DROP MATERIALIZED VIEW IF EXISTS all_donations;
                         CREATE MATERIALIZED VIEW all_donations AS
                         ({all_donations_query})
                         """
+    logger.info(f"Full command to be executed: {create_command}")  # Log the full command
     execute_command(create_command, db_params)
 
 # Main execution logic
