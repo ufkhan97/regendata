@@ -1,4 +1,4 @@
-name: Update Indexer Schema
+name: Update All Donations Materialized View
 
 on:
   schedule:
