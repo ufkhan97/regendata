@@ -28,6 +28,7 @@ def execute_command(command, db_params):
 # Update all donations materialized view
 def update_all_donations_matview(db_params):
     """Create Materialized View for all donations."""
+    print(os.getcwd())
     with open('queries/all_donations.sql', 'r') as file:
         all_donations_query = file.read()
     create_command = f"""
