@@ -15,7 +15,7 @@ jobs:
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       INDEXER_DB_HOST: ${{ secrets.INDEXER_DB_HOST }}
-      INDEXER_DB_PORT: ${{ secrets.INDEXER_DB_Port }}
+      INDEXER_DB_PORT: ${{ secrets.INDEXER_DB_PORT }}
       INDEXER_DB_NAME: ${{ secrets.INDEXER_DB_NAME }}
       INDEXER_DB_USER: ${{ secrets.INDEXER_DB_USER }}
       INDEXER_DB_PASSWORD: ${{ secrets.INDEXER_DB_PASSWORD }}
