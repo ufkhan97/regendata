@@ -46,7 +46,7 @@ OPTIONS (schema_name '{schema}', table_name 'applications');
 INDEXER_DB_PARAMS = {
     'host': os.getenv('INDEXER_DB_HOST'),
     'port': os.getenv('INDEXER_DB_PORT'),
-    'dbname': os.getenv('INDEXER_DB_DBNAME'),
+    'dbname': os.getenv('INDEXER_DB_NAME'),
     'user': os.getenv('INDEXER_DB_USER'),
     'password': os.getenv('INDEXER_DB_PASSWORD')
 }
