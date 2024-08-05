@@ -18,10 +18,10 @@ except ImportError:
 
 
 # Constants for table names
-TABLES_TO_DROP = ['rounds', 'donations', 'applications']
-TABLES_TO_IMPORT = ['rounds', 'donations']
+TABLES_TO_DROP= ['rounds', 'contributions', 'applications']
+TABLES_TO_IMPORT = ['rounds', 'contributions']
 APPLICATIONS_TABLE_DEFINITION = """
-CREATE FOREIGN TABLE public.applications (
+CREATE FOREIGN TABLE maci.applications (
   id text OPTIONS (column_name 'id') COLLATE pg_catalog."default" NOT NULL,
   chain_id integer OPTIONS (column_name 'chain_id') NOT NULL,
   round_id text OPTIONS (column_name 'round_id') COLLATE pg_catalog."default" NOT NULL,
@@ -40,18 +40,18 @@ CREATE FOREIGN TABLE public.applications (
   unique_donors_count integer OPTIONS (column_name 'unique_donors_count'),
   tags text[] OPTIONS (column_name 'tags') COLLATE pg_catalog."default"
 )
-SERVER indexer
+SERVER maci
 OPTIONS (schema_name '{schema}', table_name 'applications');
 """
 
 # Database connection details
-INDEXER_DB_PARAMS = {
-    'host': os.getenv('INDEXER_DB_HOST'),
-    'port': os.getenv('INDEXER_DB_PORT'),
-    'dbname': os.getenv('INDEXER_DB_NAME'),
-    'user': os.getenv('INDEXER_DB_USER'),
-    'password': os.getenv('INDEXER_DB_PASSWORD')
-}
+MACI_DB_PARAMS = {
+    'host': os.getenv('MACI_DB_HOST'),
+    'port': os.getenv('MACI_DB_PORT'),
+    'dbname': os.getenv('MACI_DB_NAME'),
+    'user': os.getenv('MACI_DB_USER'),
+    'password': os.getenv('MACI_DB_PASSWORD')
+    }
 
 DB_PARAMS = {
     'host': os.getenv('DB_HOST'),
@@ -85,19 +85,33 @@ def execute_command(command, db_params):
     except pg.Error as e:
         logger.error(f"ERROR: Could not execute the command. {e}")
 
-def drop_foreign_tables(tables, db_params):
-    """Drop specified foreign tables."""
+def drop_foreign_tables(tables, schema, db_params):
+    """Drop specified foreign tables from the given schema."""
     for table in tables:
-        drop_command = f'DROP FOREIGN TABLE IF EXISTS {table} CASCADE;'
+        drop_command = f'DROP FOREIGN TABLE IF EXISTS {schema}.{table} CASCADE;'
         execute_command(drop_command, db_params)
 
-def import_foreign_schema(schema, tables, db_params):
-    """Import specified tables from a foreign schema."""
+def import_foreign_schema(schema, tables, db_params, target_schema='public'):
+    """
+    Import specified tables from a foreign schema with optional renaming.
+    
+    :param schema: The name of the schema to import from
+    :param tables: List of table names to import
+    :param db_params: Database connection parameters
+    :param target_schema: The name of the schema to import into (default: 'public')
+    """
+    table_list = ', '.join(tables)
+
+    # Create the target schema if it doesn't exist
+    create_schema_command = f"CREATE SCHEMA IF NOT EXISTS {target_schema};"
+    execute_command(create_schema_command, db_params)
+    
     import_command = f"""
     IMPORT FOREIGN SCHEMA {schema}
-    LIMIT TO ({', '.join(tables)})
-    FROM SERVER indexer
-    INTO public;
+    LIMIT TO ({table_list})
+    FROM SERVER maci
+    INTO {target_schema}
+    OPTIONS (import_default 'true');
     """
     execute_command(import_command, db_params)
 
@@ -113,17 +127,18 @@ def main():
        max(substr(table_schema, 12)::int) as latest_schema_version
     FROM
        information_schema.tables
-    WHERE table_schema LIKE 'chain_data_%';
+    WHERE table_schema LIKE 'chain_data___';
     '''
-   
+    target_schema = 'maci'
     try:
-        version_result = run_query(version_query, INDEXER_DB_PARAMS)
+        version_result = run_query(version_query, MACI_DB_PARAMS)
         latest_schema_version = version_result['latest_schema_version'][0]
         schema_name = f'chain_data_{latest_schema_version}'
-        drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
-        import_foreign_schema(schema_name, TABLES_TO_IMPORT, DB_PARAMS)
+        print(f"LATEST SCHEMA IS {schema_name}")
+        drop_foreign_tables(TABLES_TO_DROP, target_schema, DB_PARAMS)
+        import_foreign_schema(schema_name, TABLES_TO_IMPORT, DB_PARAMS, target_schema)
         create_applications_table(schema_name, DB_PARAMS)
-        logger.info(f"Schema update completed successfully to version {latest_schema_version}.")
+        logger.info(f"Schema {target_schema} update completed successfully to version {latest_schema_version}.")
     except Exception as e:
         logger.error(f"Schema update failed: {e}")
         print("Schema update failed.")
