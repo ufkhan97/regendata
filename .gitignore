@@ -1,3 +1,5 @@
-
+.env
+__pycache__/
+*.pyc
 automations/regendata-ingestor-ac8b2979b4c0.json
 automations/grantsdb_credentials.json

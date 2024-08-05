@@ -6,6 +6,15 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Try to load .env file if it exists (for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    logger.info("Loaded .env file")
+except ImportError:
+    logger.info("dotenv not installed, skipping .env file loading")
+
+
 # Constants for table names
 TABLES_TO_DROP = ['rounds', 'donations', 'applications']
 TABLES_TO_IMPORT = ['rounds', 'donations']
@@ -113,7 +122,7 @@ def main():
         drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
         import_foreign_schema(schema_name, TABLES_TO_IMPORT, DB_PARAMS)
         create_applications_table(schema_name, DB_PARAMS)
-        print("Schema update completed successfully.")
+        print(f"Schema update completed successfully to version {latest_schema_version}.")
     else:
         logger.error("Could not retrieve the latest schema version.")
         print("Schema update failed.")
