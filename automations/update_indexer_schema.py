@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 # Try to load .env file if it exists (for local development)
 try:
     from dotenv import load_dotenv
-    load_dotenv()
-    logger.info("Loaded .env file")
+    result = load_dotenv()
+    logger.info(f"Loaded .env file: {result}")
 except ImportError:
     logger.info("dotenv not installed, skipping .env file loading")
 
