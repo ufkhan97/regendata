@@ -12,7 +12,6 @@ jobs:
     env:
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_Port }}
-      DB_NAME: ${{ secrets.DB_NAME }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       INDEXER_DB_HOST: ${{ secrets.INDEXER_DB_HOST }}
