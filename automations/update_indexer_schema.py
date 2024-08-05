@@ -45,7 +45,7 @@ INDEXER_DB_PARAMS = {
 DB_PARAMS = {
     'host': os.getenv('DB_HOST'),
     'port': os.getenv('DB_PORT'),
-    'dbname': os.getenv('DB_DBNAME'),
+    'dbname': 'Grants',
     'user': os.getenv('DB_USER'),
     'password': os.getenv('DB_PASSWORD')
 }
