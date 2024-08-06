@@ -88,7 +88,7 @@ def execute_command(command, db_params):
 def drop_foreign_tables(tables, db_params):
     """Drop specified foreign tables."""
     for table in tables:
-        drop_command = f'DROP FOREIGN TABLE IF EXISTS {table} CASCADE;'
+        drop_command = f'DROP FOREIGN TABLE IF EXISTS public.{table} CASCADE;'
         execute_command(drop_command, db_params)
 
 def import_foreign_schema(schema, tables, db_params):
