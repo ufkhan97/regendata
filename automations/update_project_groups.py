@@ -7,12 +7,27 @@ import itertools
 from collections import defaultdict
 from sqlalchemy import create_engine
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Try to load .env file if it exists (for local development)
+try:
+    from dotenv import load_dotenv
+    if load_dotenv():
+        logger.info("Loaded .env file")
+    else:
+        logger.info("No .env file found or loaded")
+except ImportError:
+    logger.info("dotenv not installed, skipping .env file loading")
+
 
 
 # Load database credentials from environment variables
 host = os.environ['DB_HOST']
 port = os.environ['DB_PORT']
-dbname = os.environ['DB_NAME']
+dbname = 'Grants'
 user = os.environ['DB_USER']
 password = os.environ['DB_PASSWORD']
 

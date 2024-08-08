@@ -6,6 +6,19 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# Try to load .env file if it exists (for local development)
+try:
+    from dotenv import load_dotenv
+    if load_dotenv():
+        logger.info("Loaded .env file")
+    else:
+        logger.info("No .env file found or loaded")
+except ImportError:
+    logger.info("dotenv not installed, skipping .env file loading")
+
+
+
 DB_PARAMS = {
     'host': os.getenv('DB_HOST'),
     'port': os.getenv('DB_PORT'),
@@ -28,8 +41,6 @@ def execute_command(command, db_params):
 # Update all donations materialized view
 def update_all_donations_matview(db_params):
     """Create Materialized View for all donations."""
-    logger.info(os.getcwd())
-    logger.info(os.listdir())
     with open('automations/queries/all_donations.sql', 'r') as file:
         all_donations_query = file.read()
     create_command = f"""
@@ -37,7 +48,6 @@ def update_all_donations_matview(db_params):
                         CREATE MATERIALIZED VIEW all_donations AS
                         ({all_donations_query})
                         """
-    logger.info(f"Full command to be executed: {create_command}")  # Log the full command
     execute_command(create_command, db_params)
 
 # Main execution logic
