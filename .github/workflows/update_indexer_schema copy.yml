@@ -3,7 +3,7 @@ name: Update Local Indexer Tables
 on:
   schedule:
     # Runs every two hours
-    - cron:  '0 */2 * * *'
+    - cron:  '0 */4 * * *'
   workflow_dispatch:
 
 jobs:
