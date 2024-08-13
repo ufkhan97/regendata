@@ -83,7 +83,17 @@ def update_matview(table):
     user = DB_PARAMS['user']
     
     try:
-        ensure_unique_index(table)
+        # Ensure the materialized view exists before creating the unique index
+        command = f"""
+        BEGIN;
+            CREATE MATERIALIZED VIEW IF NOT EXISTS experimental_views.{table}_local
+        AS SELECT * FROM public.{table};
+        COMMIT;
+        """
+        execute_command(command)
+        
+        ensure_unique_index(table)  # This can raise an exception if there is an issue with the index creation
+        
         command = f"""
         BEGIN;
             REFRESH MATERIALIZED VIEW CONCURRENTLY experimental_views.{table}_local;
@@ -91,8 +101,9 @@ def update_matview(table):
             GRANT SELECT ON experimental_views.{table}_local TO {user};
         COMMIT;
         """
+        execute_command(command)  # This can raise an exception if there is an issue with the SQL execution
     except Exception as e:
-        logger.warning(f"Failed to ensure unique index for table {table}: {e}")
+        logger.warning(f"Failed to refresh materialized view {table}_local: {e}")
         command = f"""
         BEGIN;
             CREATE MATERIALIZED VIEW IF NOT EXISTS experimental_views.{table}_local
@@ -102,9 +113,9 @@ def update_matview(table):
             GRANT SELECT ON experimental_views.{table}_local TO {user};
         COMMIT;
         """
-    finally:
-        execute_command(command)
+        execute_command(command)  # This can also raise an exception if there is an issue with the SQL execution
 
+        
 def main():
     tables = ['applications', 'rounds', 'donations']
     for table in tables:
