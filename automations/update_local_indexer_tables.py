@@ -27,7 +27,7 @@ DB_PARAMS = {
 }
 
 def execute_command(command):
-    logger.info(f"Executing command: {command[:100]}...")  # Log first 100 characters
+    logger.info(f"Executing command: {command[:50]}...")  # Log first 50 characters
     connection = None
     try:
         connection = psycopg2.connect(**DB_PARAMS)
@@ -81,23 +81,26 @@ def ensure_unique_index(table):
 def update_matview(table):
     user = DB_PARAMS['user']
     
-    command = f"""
-    BEGIN;
-        CREATE MATERIALIZED VIEW IF NOT EXISTS experimental_views.{table}_local
-    AS SELECT * FROM public.{table};
-    
-    REFRESH MATERIALIZED VIEW CONCURRENTLY experimental_views.{table}_local;
-    
-    GRANT USAGE ON SCHEMA experimental_views TO {user};
-    GRANT SELECT ON experimental_views.{table}_local TO {user};
-    
-    COMMIT;
-    """
-
     try:
         ensure_unique_index(table)
+        command = f"""
+        BEGIN;
+            REFRESH MATERIALIZED VIEW CONCURRENTLY experimental_views.{table}_local;
+            GRANT USAGE ON SCHEMA experimental_views TO {user};
+            GRANT SELECT ON experimental_views.{table}_local TO {user};
+        COMMIT;
+        """
     except Exception as e:
         logger.warning(f"Failed to ensure unique index for table {table}: {e}")
+        command = f"""
+        BEGIN;
+            CREATE MATERIALIZED VIEW IF NOT EXISTS experimental_views.{table}_local
+        AS SELECT * FROM public.{table};
+        
+            GRANT USAGE ON SCHEMA experimental_views TO {user};
+            GRANT SELECT ON experimental_views.{table}_local TO {user};
+        COMMIT;
+        """
     finally:
         execute_command(command)
 
