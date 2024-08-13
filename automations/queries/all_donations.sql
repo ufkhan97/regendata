@@ -51,7 +51,7 @@ grants_stack_donations AS (
         grants_stack_grants gsg ON "gsg"."application_id" = "d"."application_id"
         AND "gsg"."round_id" = "d"."round_id"
         AND gsg.chain_id = d.chain_id
-    WHERE chain_id != 11155111
+    WHERE d.chain_id != 11155111
 
 )
 SELECT 
