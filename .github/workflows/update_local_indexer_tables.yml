@@ -32,6 +32,6 @@ jobs:
         pip install -r requirements.txt
     - name: Execute Python script
       run: python automations/update_local_indexer_tables.py
-      timeout-minutes: 30
+      timeout-minutes: 55
 
 
