@@ -3,6 +3,7 @@ import psycopg2 as pg
 import pandas as pd
 import logging
 import threading
+import time  # Import the time module
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ def execute_command(command, db_params):
 
                 logger.info("Command executed successfully.")
                 
-                # Stop the keep-alive thread once the command has completed
+                # Signal the keep-alive thread to stop (using a flag or timeout)
                 keep_alive_thread.join(timeout=1)
     except pg.Error as e:
         logger.error(f"ERROR: Could not execute the command. {e}")
