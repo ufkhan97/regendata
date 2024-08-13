@@ -1,45 +1,32 @@
-name: Check and Run Update
+name: Update All Donations Materialized View
 
 on:
-  push:
-    branches:
-      - main
+  schedule:
+    # Runs at 5:00 UTC every day
+    - cron:  '0 5 * * *'
   workflow_dispatch:
 
 jobs:
-  build:
+  run-script:
     runs-on: ubuntu-latest
     env:
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_Port }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      INDEXER_DB_HOST: ${{ secrets.INDEXER_DB_HOST }}
-      INDEXER_DB_PORT: ${{ secrets.INDEXER_DB_PORT }}
-      INDEXER_DB_NAME: ${{ secrets.INDEXER_DB_NAME }}
-      INDEXER_DB_USER: ${{ secrets.INDEXER_DB_USER }}
-      INDEXER_DB_PASSWORD: ${{ secrets.INDEXER_DB_PASSWORD }}
-    timeout-minutes: 60  # Extend timeout as necessary
-
     steps:
-      - name: Check Out Code
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Execute Python script
+      run: python automations/update_all_donations_matview.py
+      timeout-minutes: 55
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
 
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
-
-      - name: Log System Resources Periodically
-        run: |
-          while true; do
-            echo "---- Resource Check ----"
-            free -h
-            df -h
-            top -b -n 1 | head -n 20
-            sleep 60
-          done &
-          python automations/update_all_donations_matview.py

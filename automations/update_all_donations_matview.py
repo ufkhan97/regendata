@@ -48,6 +48,8 @@ def execute_command(command, db_params):
                 keep_alive_thread.start()
 
                 cur.execute("SET statement_timeout = 0;")
+                cur.execute("SET tcp_keepalives_idle = 180;")  # 5 minutes
+                cur.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
                 cur.execute(command)
                 conn.commit()
 
