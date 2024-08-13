@@ -77,6 +77,7 @@ def ensure_unique_index(table):
     END $$;
     """
     execute_command(command)
+    return 
 
 def update_matview(table):
     user = DB_PARAMS['user']
