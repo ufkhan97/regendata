@@ -32,6 +32,8 @@ def execute_command(command):
     try:
         connection = psycopg2.connect(**DB_PARAMS)
         cursor = connection.cursor()
+        cursor.execute("SET tcp_keepalives_idle = 180;")  # 3 minutes
+        cursor.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
         cursor.execute(command)
         connection.commit()
         logger.info("Command executed successfully.")
