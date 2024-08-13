@@ -1,11 +1,11 @@
 import os
-import psycopg2 as pg
-import pandas as pd
+import psycopg2
 import logging
+import time
 
-logging.basicConfig(level=logging.INFO)
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
 
 # Try to load .env file if it exists (for local development)
 try:
@@ -17,60 +17,95 @@ try:
 except ImportError:
     logger.info("dotenv not installed, skipping .env file loading")
 
-
-
+# Load database credentials from environment variables
 DB_PARAMS = {
-    'host': os.getenv('DB_HOST'),
-    'port': os.getenv('DB_PORT'),
+    'host': os.environ['DB_HOST'],
+    'port': os.environ['DB_PORT'],
     'dbname': 'Grants',
-    'user': os.getenv('DB_USER'),
-    'password': os.getenv('DB_PASSWORD')
+    'user': os.environ['DB_USER'],
+    'password': os.environ['DB_PASSWORD']
 }
 
-def execute_command(command, db_params):
-    """Execute a SQL command that doesn't return results."""
+def execute_command(command):
+    logger.info(f"Executing command: {command[:100]}...")  # Log first 100 characters
+    connection = None
     try:
-        with pg.connect(**db_params) as conn:
-            with conn.cursor() as cur:
-                cur.execute(command)
-                conn.commit()
-                logger.info("Command executed successfully.")
-    except pg.Error as e:
-        logger.error(f"ERROR: Could not execute the command. {e}")
+        connection = psycopg2.connect(**DB_PARAMS)
+        cursor = connection.cursor()
+        cursor.execute(command)
+        connection.commit()
+        logger.info("Command executed successfully.")
+    except psycopg2.Error as e:
+        logger.error(f"Database error: {e}")
+        if connection:
+            connection.rollback()
+        raise
+    finally:
+        if connection:
+            connection.close()
 
-# Update materialized view
-def update__matview(db_params, table):
-    """Create Materialized View."""
-    user = db_params['user']
-    with open('automations/queries/all_donations.sql', 'r') as file:
-        all_donations_query = file.read()
-    command = f"""
-        -- Create a new schema for experimental views
-        CREATE SCHEMA IF NOT EXISTS experimental_views;
-
-        -- Create the materialized view in the new schema
-        DROP MATERIALIZED VIEW IF EXISTS experimental_views.{table}_local;
-        CREATE MATERIALIZED VIEW experimental_views.{table}_local AS
-        (
-        SELECT
-            *
-        FROM
-            public.{table}
-        );
-
-        -- Grant necessary permissions (adjust as needed)
-        GRANT USAGE ON SCHEMA experimental_views TO {user};
-        GRANT SELECT ON experimental_views.{table}_local TO {user};"""
-    execute_command(command, db_params)
-
-# Main execution logic
-def main():
+def ensure_unique_index(table):
+    # Define unique index columns for each table
+    index_columns = {
+        'applications': ['id', 'chain_id', 'round_id'],
+        'rounds': ['id', 'chain_id'],
+        'donations': ['id']  # Adjust these columns as needed
+    }
     
-        for table in ['applications', 'rounds', 'donations']:
-            try:
-                update__matview(DB_PARAMS, table)
-            except Exception as e:
-                logger.error(f"Failed to update materialized view {table}_local: {e}")
+    columns = index_columns.get(table)
+    if not columns:
+        logger.warning(f"No unique index defined for table {table}")
+        return
+
+    index_name = f"{table}_local_unique_idx"
+    column_list = ', '.join(columns)
+    
+    command = f"""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_indexes
+            WHERE schemaname = 'experimental_views'
+            AND tablename = '{table}_local'
+            AND indexname = '{index_name}'
+        ) THEN
+            CREATE UNIQUE INDEX {index_name} ON experimental_views.{table}_local ({column_list});
+        END IF;
+    END $$;
+    """
+    execute_command(command)
+
+def update_matview(table):
+    user = DB_PARAMS['user']
+    
+    command = f"""
+    BEGIN;
+        CREATE MATERIALIZED VIEW IF NOT EXISTS experimental_views.{table}_local
+    AS SELECT * FROM public.{table};
+    
+    REFRESH MATERIALIZED VIEW CONCURRENTLY experimental_views.{table}_local;
+    
+    GRANT USAGE ON SCHEMA experimental_views TO {user};
+    GRANT SELECT ON experimental_views.{table}_local TO {user};
+    
+    COMMIT;
+    """
+
+    ensure_unique_index(table)
+    execute_command(command)
+
+def main():
+    tables = ['applications', 'rounds', 'donations']
+    for table in tables:
+        try:
+            logger.info(f"Starting refresh for materialized view {table}_local")
+            start_time = time.time()
+            update_matview(table)
+            end_time = time.time()
+            logger.info(f"Successfully refreshed materialized view {table}_local in {end_time - start_time} seconds")
+        except Exception as e:
+            logger.error(f"Failed to refresh materialized view {table}_local: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()
