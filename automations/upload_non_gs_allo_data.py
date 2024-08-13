@@ -4,6 +4,11 @@ import pandas as pd
 from sqlalchemy import create_engine
 import json
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 
 # Load database credentials from environment variables
 host = os.environ['DB_HOST']

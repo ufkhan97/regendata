@@ -2,10 +2,8 @@ import os
 import psycopg2 as pg
 import pandas as pd
 import logging
-import threading
-import time  # Import the time module
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -28,35 +26,15 @@ DB_PARAMS = {
     'password': os.getenv('DB_PASSWORD')
 }
 
-def keep_connection_alive(cursor, interval=60):
-    """Periodically execute a simple query to keep the connection alive."""
-    try:
-        while True:
-            cursor.execute("SELECT 1;")
-            logger.info("Keep-alive query executed.")
-            time.sleep(interval)
-    except Exception as e:
-        logger.error(f"Keep-alive mechanism failed: {e}")
 
 def execute_command(command, db_params):
     """Execute a SQL command that doesn't return results."""
     try:
         with pg.connect(**db_params) as conn:
             with conn.cursor() as cur:
-                # Start a background thread to keep the connection alive
-                keep_alive_thread = threading.Thread(target=keep_connection_alive, args=(cur,))
-                keep_alive_thread.start()
-
-                cur.execute("SET statement_timeout = 0;")
-                cur.execute("SET tcp_keepalives_idle = 180;")  # 5 minutes
-                cur.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
                 cur.execute(command)
                 conn.commit()
-
                 logger.info("Command executed successfully.")
-                
-                # Signal the keep-alive thread to stop (using a flag or timeout)
-                keep_alive_thread.join(timeout=1)
     except pg.Error as e:
         logger.error(f"ERROR: Could not execute the command. {e}")
 

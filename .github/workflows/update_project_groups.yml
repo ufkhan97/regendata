@@ -23,7 +23,8 @@ jobs:
         python-version: '3.8'
     - name: Install dependencies
       run: |
-        pip install pandas sqlalchemy psycopg2-binary networkx 
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
     - name: Execute Python script
       run: python automations/update_project_groups.py
 

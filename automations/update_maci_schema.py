@@ -3,7 +3,7 @@ import psycopg2 as pg
 import pandas as pd
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Try to load .env file if it exists (for local development)

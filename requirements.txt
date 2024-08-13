@@ -2,4 +2,5 @@ pandas
 sqlalchemy
 psycopg2-binary
 python-dotenv
-tenacity
+gspread
+oauth2client
