@@ -3,6 +3,7 @@ import psycopg2 as pg
 import pandas as pd
 import logging
 
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -27,14 +28,19 @@ DB_PARAMS = {
 }
 
 
+
 def execute_command(command, db_params):
     """Execute a SQL command that doesn't return results."""
     try:
         with pg.connect(**db_params) as conn:
             with conn.cursor() as cur:
+                cur.execute("SET tcp_keepalives_idle = 180;")  # 3 minutes
+                cur.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
                 cur.execute(command)
                 conn.commit()
+
                 logger.info("Command executed successfully.")
+                
     except pg.Error as e:
         logger.error(f"ERROR: Could not execute the command. {e}")
 
