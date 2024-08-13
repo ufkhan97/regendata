@@ -1,12 +1,11 @@
 import os
 import psycopg2 as pg
-from psycopg2 import pool
 import pandas as pd
 import logging
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 # Try to load .env file if it exists (for local development)
 try:
@@ -18,7 +17,8 @@ try:
 except ImportError:
     logger.info("dotenv not installed, skipping .env file loading")
 
-# Database connection details
+
+
 DB_PARAMS = {
     'host': os.getenv('DB_HOST'),
     'port': os.getenv('DB_PORT'),
@@ -27,27 +27,20 @@ DB_PARAMS = {
     'password': os.getenv('DB_PASSWORD')
 }
 
-# Create a connection pool
-connection_pool = pool.SimpleConnectionPool(1, 10, **DB_PARAMS)
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def execute_command(command):
+def execute_command(command, db_params):
     """Execute a SQL command that doesn't return results."""
-    conn = connection_pool.getconn()
     try:
-        with conn.cursor() as cur:
-            cur.execute(command)
-            conn.commit()
-            logger.info("Command executed successfully.")
+        with pg.connect(**db_params) as conn:
+            conn.set_session(statement_timeout=0)  # 0 means no timeout
+            with conn.cursor() as cur:
+                cur.execute(command)
+                conn.commit()
+                logger.info("Command executed successfully.")
     except pg.Error as e:
         logger.error(f"ERROR: Could not execute the command. {e}")
-        conn.rollback()
-        raise
-    finally:
-        connection_pool.putconn(conn)
 
 # Update all donations materialized view
-def update_all_donations_matview():
+def update_all_donations_matview(db_params):
     """Create Materialized View for all donations."""
     with open('automations/queries/all_donations.sql', 'r') as file:
         all_donations_query = file.read()
@@ -56,17 +49,14 @@ def update_all_donations_matview():
                         CREATE MATERIALIZED VIEW all_donations AS
                         ({all_donations_query})
                         """
-    execute_command(create_command)
+    execute_command(create_command, db_params)
 
 # Main execution logic
 def main():
     try:
-        update_all_donations_matview()
+        update_all_donations_matview(DB_PARAMS)
     except Exception as e:
         logger.error(f"Failed to update all donations materialized view: {e}")
-    finally:
-        if connection_pool:
-            connection_pool.closeall()
 
 if __name__ == "__main__":
     main()
