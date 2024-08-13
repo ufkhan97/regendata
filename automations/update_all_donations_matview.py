@@ -31,8 +31,9 @@ def execute_command(command, db_params):
     """Execute a SQL command that doesn't return results."""
     try:
         with pg.connect(**db_params) as conn:
-            conn.set_session(statement_timeout=0)  # 0 means no timeout
             with conn.cursor() as cur:
+                cur.execute("SET statement_timeout = 0;")
+
                 cur.execute(command)
                 conn.commit()
                 logger.info("Command executed successfully.")
