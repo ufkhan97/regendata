@@ -94,8 +94,12 @@ def update_matview(table):
     COMMIT;
     """
 
-    ensure_unique_index(table)
-    execute_command(command)
+    try:
+        ensure_unique_index(table)
+    except Exception as e:
+        logger.warning(f"Failed to ensure unique index for table {table}: {e}")
+    finally:
+        execute_command(command)
 
 def main():
     tables = ['applications', 'rounds', 'donations']
