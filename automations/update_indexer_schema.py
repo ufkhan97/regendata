@@ -18,8 +18,8 @@ except ImportError:
 
 
 # Constants for table names
-TABLES_TO_DROP = ['rounds', 'donations', 'applications']
-TABLES_TO_IMPORT = ['rounds', 'donations']
+TABLES_TO_DROP = ['rounds', 'donations', 'applications', 'applications_payouts']
+TABLES_TO_IMPORT = ['rounds', 'donations', 'applications_payouts']
 APPLICATIONS_TABLE_DEFINITION = """
 CREATE FOREIGN TABLE public.applications (
   id text OPTIONS (column_name 'id') COLLATE pg_catalog."default" NOT NULL,
