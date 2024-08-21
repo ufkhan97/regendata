@@ -9,6 +9,14 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+try:
+    from dotenv import load_dotenv
+    if load_dotenv():
+        logger.info("Loaded .env file")
+    else:
+        logger.info("No .env file found or loaded")
+except ImportError:
+    logger.info("dotenv not installed, skipping .env file loading")
 
 # Load database credentials from environment variables
 host = os.environ['DB_HOST']
