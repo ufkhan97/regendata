@@ -1,5 +1,6 @@
 # Establish which Grants DB Users have access to Foreign Data
 # Such as the Indexer and MACI databases
+# Also grant access to SELECT on all tables in the experimental_views schema
 
 import pandas as pd
 import psycopg2 as pg
