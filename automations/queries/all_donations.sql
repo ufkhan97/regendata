@@ -82,4 +82,4 @@ SELECT
   chain_id,
   source
 FROM 
-  static_donations
+  static_donations 
