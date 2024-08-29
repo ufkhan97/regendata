@@ -12,7 +12,9 @@ WITH gg_rounds AS (
   SELECT 
      round_num,
      project_name as title,
-     match_amount_in_usd,
+     CASE 
+        WHEN im.round_id = '0xa1d52f9b5339792651861329a046dd912761e9a9' THEN match_amount_in_usd/1000000000000 
+        ELSE match_amount_in_usd END AS match_amount_in_usd,
      project_payout_address as recipient_address,
      project_id,
      im.round_id,
