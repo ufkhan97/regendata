@@ -27,8 +27,6 @@ DB_PARAMS = {
     'password': os.getenv('DB_PASSWORD')
 }
 
-
-
 def execute_command(command, db_params):
     """Execute a SQL command that doesn't return results."""
     try:
@@ -44,15 +42,15 @@ def execute_command(command, db_params):
     except pg.Error as e:
         logger.error(f"ERROR: Could not execute the command. {e}")
 
-# Update all donations materialized view
-def update_all_donations_matview(db_params):
-    """Create Materialized View for all donations."""
-    with open('automations/queries/all_donations.sql', 'r') as file:
-        all_donations_query = file.read()
+
+def update_indexer_matching_view(db_params):
+    """Create View for indexer matching."""
+    with open('automations/queries/indexer_matching.sql', 'r') as file:
+        indexer_matching_query = file.read()
     create_command = f"""
-                        DROP MATERIALIZED VIEW IF EXISTS all_donations;
-                        CREATE MATERIALIZED VIEW all_donations AS
-                        ({all_donations_query})
+                        DROP VIEW IF EXISTS indexer_matching CASCADE;
+                        CREATE VIEW indexer_matching AS
+                        ({indexer_matching_query})
                         """
     execute_command(create_command, db_params)
 
@@ -65,12 +63,28 @@ def update_all_matching_matview(db_params):
                         CREATE MATERIALIZED VIEW all_matching AS
                         ({all_matching_query})
                         """
+    execute_command(create_command, db_params)     
+
+# Update all donations materialized view
+def update_all_donations_matview(db_params):
+    """Create Materialized View for all donations."""
+    with open('automations/queries/all_donations.sql', 'r') as file:
+        all_donations_query = file.read()
+    create_command = f"""
+                        DROP MATERIALIZED VIEW IF EXISTS all_donations;
+                        CREATE MATERIALIZED VIEW all_donations AS
+                        ({all_donations_query})
+                        """
     execute_command(create_command, db_params)
+
 
 # Main execution logic
 def main():
     try:
-        logger.info("Starting update of materialized views...")
+        logger.info("Updating indexer_matching view...")
+        update_indexer_matching_view(DB_PARAMS)
+        logger.info("Successfully updated indexer_matching view.")
+        
         
         logger.info("Updating all_matching materialized view...")
         update_all_matching_matview(DB_PARAMS)
@@ -80,13 +94,13 @@ def main():
         update_all_donations_matview(DB_PARAMS)
         logger.info("Successfully updated all_donations materialized view.")
         
-        logger.info("All materialized views updated successfully.")
+        logger.info("All views updated successfully.")
     except pg.Error as e:
-        logger.error(f"Database error occurred while updating materialized views: {e}")
+        logger.error(f"Database error occurred while updating views: {e}")
     except IOError as e:
         logger.error(f"IO error occurred while reading SQL files: {e}")
     except Exception as e:
-        logger.error(f"Unexpected error occurred while updating materialized views: {e}")
+        logger.error(f"Unexpected error occurred while updating views: {e}")
 
 if __name__ == "__main__":
     main()
