@@ -56,12 +56,37 @@ def update_all_donations_matview(db_params):
                         """
     execute_command(create_command, db_params)
 
+def update_all_matching_matview(db_params):
+    """Create Materialized View for all matching."""
+    with open('automations/queries/all_matching.sql', 'r') as file:
+        all_matching_query = file.read()
+    create_command = f"""
+                        DROP MATERIALIZED VIEW IF EXISTS all_matching;
+                        CREATE MATERIALIZED VIEW all_matching AS
+                        ({all_matching_query})
+                        """
+    execute_command(create_command, db_params)
+
 # Main execution logic
 def main():
     try:
+        logger.info("Starting update of materialized views...")
+        
+        logger.info("Updating all_matching materialized view...")
+        update_all_matching_matview(DB_PARAMS)
+        logger.info("Successfully updated all_matching materialized view.")
+        
+        logger.info("Updating all_donations materialized view...")
         update_all_donations_matview(DB_PARAMS)
+        logger.info("Successfully updated all_donations materialized view.")
+        
+        logger.info("All materialized views updated successfully.")
+    except pg.Error as e:
+        logger.error(f"Database error occurred while updating materialized views: {e}")
+    except IOError as e:
+        logger.error(f"IO error occurred while reading SQL files: {e}")
     except Exception as e:
-        logger.error(f"Failed to update all donations materialized view: {e}")
+        logger.error(f"Unexpected error occurred while updating materialized views: {e}")
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,4 @@
-name: Update All Donations Materialized View
+name: Update All Donations & All Matching Materialized Views
 
 on:
   schedule:
@@ -26,7 +26,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Execute Python script
-      run: python automations/update_all_donations_matview.py
+      run: python automations/update_all_donations_and_matching_matviews.py
       timeout-minutes: 55
 
 
