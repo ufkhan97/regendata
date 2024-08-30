@@ -53,6 +53,7 @@ def create_user_mapping(server_name, db_user, fdw_user,  fdw_password, DB_PARAMS
     """
     execute_command(create_user_mapping_query, DB_PARAMS)
 
+
 def grant_schema_access(schema, user, DB_PARAMS):
     """Grant access to a schema for a user"""
     grant_usage_query = f"""
@@ -112,6 +113,7 @@ def main():
     for user in USERS:
         create_user_mapping('indexer', user, INDEXER_DB_PARAMS['user'], INDEXER_DB_PARAMS['password'], DB_PARAMS)
         create_user_mapping('maci', user, MACI_DB_PARAMS['user'], MACI_DB_PARAMS['password'], DB_PARAMS)
+        grant_schema_access('maci', user, DB_PARAMS)
         grant_schema_access('experimental_views', user, DB_PARAMS)
 
 if __name__ == "__main__":
