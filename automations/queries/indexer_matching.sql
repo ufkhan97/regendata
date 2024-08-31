@@ -14,3 +14,5 @@ SELECT
 FROM 
     rounds r,
     jsonb_array_elements(r.matching_distribution->'matchingDistribution') AS md(value)
+WHERE 
+    chain_id != 11155111
