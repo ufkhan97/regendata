@@ -19,6 +19,7 @@ jobs:
       INDEXER_DB_NAME: ${{ secrets.INDEXER_DB_NAME }}
       INDEXER_DB_USER: ${{ secrets.INDEXER_DB_USER }}
       INDEXER_DB_PASSWORD: ${{ secrets.INDEXER_DB_PASSWORD }}
+      DB_FDW_USERS: ${{ secrets.DB_FDW_USERS }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
