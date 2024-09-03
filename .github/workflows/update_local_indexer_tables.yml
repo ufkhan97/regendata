@@ -33,5 +33,8 @@ jobs:
     - name: Execute Python script
       run: python automations/update_local_indexer_tables.py
       timeout-minutes: 55
+    - name: Update Permissions
+      run: python automations/create_foreign_data_users.py
+      timeout-minutes: 55
 
 
