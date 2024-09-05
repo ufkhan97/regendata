@@ -2,6 +2,7 @@ import os
 import psycopg2 as pg
 import pandas as pd
 import logging
+import db_utils as db
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -61,35 +62,12 @@ DB_PARAMS = {
     'password': os.getenv('DB_PASSWORD')
 }
 
-def run_query(query, db_params):
-    """Run a query and return the results as a DataFrame."""
-    try:
-        with pg.connect(**db_params) as conn:
-            with conn.cursor() as cur:
-                cur.execute(query)
-                col_names = [desc[0] for desc in cur.description]
-                results = pd.DataFrame(cur.fetchall(), columns=col_names)
-                return results
-    except pg.Error as e:
-        logger.error(f"ERROR: Could not execute the query. {e}")
-        return None
-
-def execute_command(command, db_params):
-    """Execute a SQL command that doesn't return results."""
-    try:
-        with pg.connect(**db_params) as conn:
-            with conn.cursor() as cur:
-                cur.execute(command)
-                conn.commit()
-                logger.info("Command executed successfully.")
-    except pg.Error as e:
-        logger.error(f"ERROR: Could not execute the command. {e}")
 
 def drop_foreign_tables(tables, db_params):
     """Drop specified foreign tables."""
     for table in tables:
         drop_command = f'DROP FOREIGN TABLE IF EXISTS public.{table} CASCADE;'
-        execute_command(drop_command, db_params)
+        db.execute_command(drop_command, db_params, logger)
 
 def import_foreign_schema(schema, tables, db_params):
     """Import specified tables from a foreign schema."""
@@ -99,12 +77,12 @@ def import_foreign_schema(schema, tables, db_params):
     FROM SERVER indexer
     INTO public;
     """
-    execute_command(import_command, db_params)
+    db.execute_command(import_command, db_params, logger)
 
 def create_applications_table(schema, db_params):
     """Create the applications table."""
     create_command = APPLICATIONS_TABLE_DEFINITION.format(schema=schema)
-    execute_command(create_command, db_params)
+    db.execute_command(create_command, db_params, logger)
 
 # Main execution logic
 def main():
@@ -117,7 +95,7 @@ def main():
     '''
    
     try:
-        version_result = run_query(version_query, INDEXER_DB_PARAMS)
+        version_result = db.run_query(version_query, INDEXER_DB_PARAMS, logger)
         latest_schema_version = version_result['latest_schema_version'][0]
         schema_name = f'chain_data_{latest_schema_version}'
         drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
