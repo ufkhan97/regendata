@@ -22,7 +22,7 @@ except ImportError:
 TABLES_TO_DROP = ['rounds', 'donations', 'applications', 'applications_payouts']
 TABLES_TO_IMPORT = ['rounds', 'donations', 'applications_payouts']
 APPLICATIONS_TABLE_DEFINITION = """
-CREATE FOREIGN TABLE public.applications (
+CREATE FOREIGN TABLE indexer.applications (
   id text OPTIONS (column_name 'id') COLLATE pg_catalog."default" NOT NULL,
   chain_id integer OPTIONS (column_name 'chain_id') NOT NULL,
   round_id text OPTIONS (column_name 'round_id') COLLATE pg_catalog."default" NOT NULL,
@@ -66,20 +66,11 @@ DB_PARAMS = {
 def drop_foreign_tables(tables, db_params):
     """Drop specified foreign tables."""
     for table in tables:
-        drop_command = f'DROP FOREIGN TABLE IF EXISTS public.{table} CASCADE;'
+        drop_command = f'DROP FOREIGN TABLE IF EXISTS indexer.{table} CASCADE;'
         db.execute_command(drop_command, db_params, logger)
 
-def import_foreign_schema(schema, tables, db_params):
-    """Import specified tables from a foreign schema."""
-    import_command = f"""
-    IMPORT FOREIGN SCHEMA {schema}
-    LIMIT TO ({', '.join(tables)})
-    FROM SERVER indexer
-    INTO public;
-    """
-    db.execute_command(import_command, db_params, logger)
 
-def create_applications_table(schema, db_params):
+def create_applications_table(schema, db_params, logger=None):
     """Create the applications table."""
     create_command = APPLICATIONS_TABLE_DEFINITION.format(schema=schema)
     db.execute_command(create_command, db_params, logger)
@@ -95,12 +86,14 @@ def main():
     '''
    
     try:
+        server = 'indexer'
+        target_schema = 'indexer'
         version_result = db.run_query(version_query, INDEXER_DB_PARAMS, logger)
         latest_schema_version = version_result['latest_schema_version'][0]
         schema_name = f'chain_data_{latest_schema_version}'
         drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
-        import_foreign_schema(schema_name, TABLES_TO_IMPORT, DB_PARAMS)
-        create_applications_table(schema_name, DB_PARAMS)
+        db.import_foreign_schema(server, schema_name, TABLES_TO_IMPORT, DB_PARAMS, target_schema, logger=logger)
+        create_applications_table(schema_name, DB_PARAMS, logger)
         logger.info(f"Schema update completed successfully to version {latest_schema_version}.")
     except Exception as e:
         logger.error(f"Schema update failed: {e}")

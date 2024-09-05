@@ -59,7 +59,7 @@ def ensure_unique_index(table):
         logger.warning(f"No unique index defined for table {table}")
         return
 
-    index_name = f"{table}_local_unique_idx"
+    index_name = f"{table}_unique_idx"
     column_list = ', '.join(columns)
     
     command = f"""
@@ -68,11 +68,11 @@ def ensure_unique_index(table):
         IF NOT EXISTS (
             SELECT 1
             FROM pg_indexes
-            WHERE schemaname = 'experimental_views'
-            AND tablename = '{table}_local'
+            WHERE schemaname = 'public'
+            AND tablename = '{table}'
             AND indexname = '{index_name}'
         ) THEN
-            CREATE UNIQUE INDEX {index_name} ON experimental_views.{table}_local ({column_list});
+            CREATE UNIQUE INDEX {index_name} ON public.{table} ({column_list});
         END IF;
     END $$;
     """
@@ -86,8 +86,11 @@ def update_matview(table):
         # Ensure the materialized view exists before creating the unique index
         command = f"""
         BEGIN;
-            CREATE MATERIALIZED VIEW IF NOT EXISTS experimental_views.{table}_local
-        AS SELECT * FROM public.{table};
+            CREATE MATERIALIZED VIEW IF NOT EXISTS public.{table}
+        AS 
+            SELECT * FROM indexer.{table}
+            UNION
+            SELECT * FROM static_indexer_chain_data_75.{table};
         COMMIT;
         """
         execute_command(command)
@@ -96,21 +99,21 @@ def update_matview(table):
         
         command = f"""
         BEGIN;
-            REFRESH MATERIALIZED VIEW CONCURRENTLY experimental_views.{table}_local;
-            GRANT USAGE ON SCHEMA experimental_views TO {user};
-            GRANT SELECT ON experimental_views.{table}_local TO {user};
+            REFRESH MATERIALIZED VIEW CONCURRENTLY public.{table};
         COMMIT;
         """
         execute_command(command)  # This can raise an exception if there is an issue with the SQL execution
+
     except Exception as e:
-        logger.warning(f"Failed to refresh materialized view {table}_local: {e}")
+        logger.warning(f"Failed to refresh materialized view {table}: {e}")
         command = f"""
         BEGIN;
-            CREATE MATERIALIZED VIEW IF NOT EXISTS experimental_views.{table}_local
-        AS SELECT * FROM public.{table};
-        
-            GRANT USAGE ON SCHEMA experimental_views TO {user};
-            GRANT SELECT ON experimental_views.{table}_local TO {user};
+            CREATE MATERIALIZED VIEW IF NOT EXISTS public.{table}
+        AS 
+            SELECT * FROM indexer.{table}
+            UNION
+            SELECT * FROM static_indexer_chain_data_75.{table};
+    
         COMMIT;
         """
         execute_command(command)  # This can also raise an exception if there is an issue with the SQL execution
@@ -120,13 +123,13 @@ def main():
     tables = ['applications', 'rounds', 'donations']
     for table in tables:
         try:
-            logger.info(f"Starting refresh for materialized view {table}_local")
+            logger.info(f"Starting refresh for materialized view {table}")
             start_time = time.time()
             update_matview(table)
             end_time = time.time()
-            logger.info(f"Successfully refreshed materialized view {table}_local in {end_time - start_time} seconds")
+            logger.info(f"Successfully refreshed materialized view {table} in {end_time - start_time} seconds")
         except Exception as e:
-            logger.error(f"Failed to refresh materialized view {table}_local: {e}", exc_info=True)
+            logger.error(f"Failed to refresh materialized view {table}l: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()
