@@ -118,7 +118,7 @@ def main():
    
     try:
         version_result = run_query(version_query, INDEXER_DB_PARAMS)
-        latest_schema_version = 75
+        latest_schema_version = version_result['latest_schema_version'][0]
         schema_name = f'chain_data_{latest_schema_version}'
         drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
         import_foreign_schema(schema_name, TABLES_TO_IMPORT, DB_PARAMS)
