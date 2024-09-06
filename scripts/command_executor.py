@@ -42,8 +42,9 @@ def execute_command(command):
             connection.close()
 
 def main():
+
     command = """
-    -- Add your SQL command here
+ 
     """
     try:
         execute_command(command)

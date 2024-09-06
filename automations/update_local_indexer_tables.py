@@ -26,6 +26,14 @@ DB_PARAMS = {
     'password': os.environ['DB_PASSWORD']
 }
 
+# Define unique index columns for each table
+INDEX_COLUMNS = {
+    'applications': ['id', 'chain_id', 'round_id'],
+    'rounds': ['id', 'chain_id'],
+    'donations': ['id'],
+    'applications_payouts': ['id']
+}
+
 def execute_command(command):
     logger.info(f"Executing command: {command[:50]}...")  # Log first 50 characters
     connection = None
@@ -47,14 +55,7 @@ def execute_command(command):
             connection.close()
 
 def ensure_unique_index(table):
-    # Define unique index columns for each table
-    index_columns = {
-        'applications': ['id', 'chain_id', 'round_id'],
-        'rounds': ['id', 'chain_id'],
-        'donations': ['id']  # Adjust these columns as needed
-    }
-    
-    columns = index_columns.get(table)
+    columns = INDEX_COLUMNS.get(table)
     if not columns:
         logger.warning(f"No unique index defined for table {table}")
         return
@@ -81,6 +82,7 @@ def ensure_unique_index(table):
 
 def update_matview(table):
     user = DB_PARAMS['user']
+    index_columns = ', '.join(INDEX_COLUMNS[table])
     
     try:
         # Ensure the materialized view exists before creating the unique index
@@ -88,9 +90,12 @@ def update_matview(table):
         BEGIN;
             CREATE MATERIALIZED VIEW IF NOT EXISTS public.{table}
         AS 
-            SELECT * FROM indexer.{table}
-            UNION
-            SELECT * FROM static_indexer_chain_data_75.{table};
+            SELECT DISTINCT ON ({index_columns}) *
+            FROM (
+                SELECT * FROM indexer.{table} WHERE chain_id != 11155111
+                UNION ALL
+                SELECT * FROM static_indexer_chain_data_75.{table} WHERE chain_id != 11155111
+            ) combined_data;
         COMMIT;
         """
         execute_command(command)
@@ -110,17 +115,19 @@ def update_matview(table):
         BEGIN;
             CREATE MATERIALIZED VIEW IF NOT EXISTS public.{table}
         AS 
-            SELECT * FROM indexer.{table}
-            UNION
-            SELECT * FROM static_indexer_chain_data_75.{table};
-    
+            SELECT DISTINCT ON ({index_columns}) *
+            FROM (
+                SELECT * FROM indexer.{table} WHERE chain_id != 11155111
+                UNION ALL
+                SELECT * FROM static_indexer_chain_data_75.{table} WHERE chain_id != 11155111
+            ) combined_data;
         COMMIT;
         """
         execute_command(command)  # This can also raise an exception if there is an issue with the SQL execution
 
         
 def main():
-    tables = ['applications', 'rounds', 'donations']
+    tables = ['applications_payouts', 'applications', 'rounds', 'donations']
     for table in tables:
         try:
             logger.info(f"Starting refresh for materialized view {table}")
@@ -129,7 +136,7 @@ def main():
             end_time = time.time()
             logger.info(f"Successfully refreshed materialized view {table} in {end_time - start_time} seconds")
         except Exception as e:
-            logger.error(f"Failed to refresh materialized view {table}l: {e}", exc_info=True)
+            logger.error(f"Failed to refresh materialized view {table}: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()

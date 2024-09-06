@@ -85,10 +85,33 @@ def move_table(old_schema, old_table, new_table, new_schema):
             logger.info(f"Granted permissions to user {user} on {new_schema}.{new_table}")
 
 def main():
-    old_schema = 'experimental_views'
-    new_schema = 'static_indexer_chain_data_75'
-    old_tables = ['static_donations_chain_data_75', 'static_applications_chain_data_75', 'static_rounds_chain_data_75']
-    new_tables = ['donations', 'applications', 'rounds']
+    old_schema = 'public'
+    new_schema = 'cgrants'
+    # Get all tables in the old schema that start with 'alpha' or 'cgrants'
+    get_tables_command = f"""
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = '{old_schema}'
+    AND (table_name LIKE 'alpha%' OR table_name LIKE 'cgrants%');
+    """
+    
+    tables = []
+    try:
+        connection = psycopg2.connect(**DB_PARAMS)
+        cursor = connection.cursor()
+        cursor.execute(get_tables_command)
+        tables = [row[0] for row in cursor.fetchall()]
+    except psycopg2.Error as e:
+        logger.error(f"Database error when fetching tables: {e}")
+        raise
+    finally:
+        if connection:
+            connection.close()
+
+    logger.info(f"Found {len(tables)} tables to move: {', '.join(tables)}")
+
+    old_tables = tables
+    new_tables = tables  # Keep the same table names
     try:
         create_schema(new_schema)
         for old_table, new_table in zip(old_tables, new_tables):
