@@ -73,12 +73,27 @@ def execute_command(connection, command):
         connection.rollback()
         raise
 
+def check_matview_exists(connection, matview):
+    query = f"""
+    SELECT EXISTS (
+        SELECT FROM pg_matviews
+        WHERE schemaname = 'public' AND matviewname = '{matview}'
+    );
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        return cursor.fetchone()[0]
+
 def get_matview_total(connection, matview):
     config = MATVIEW_CONFIGS[matview]
     amount_column = config['amount_column']
     
     if not amount_column:
         return None
+    
+    if not check_matview_exists(connection, matview):
+        logger.warning(f"Materialized view {matview} does not exist. Will be created during refresh.")
+        return Decimal('0')
     
     query = f"SELECT SUM({amount_column}) FROM public.{matview}"
     
@@ -160,18 +175,12 @@ def main():
     connection = None
     try:
         connection = get_connection()
-        for matview in [mv for mv in MATVIEW_CONFIGS if mv != 'donations']:
+        for matview in MATVIEW_CONFIGS:
             logger.info(f"Starting refresh for materialized view {matview}")
             start_time = time.time()
             refresh_matview(connection, matview)
             end_time = time.time()
             logger.info(f"Finished refresh for materialized view {matview} in {end_time - start_time:.2f} seconds")
-        
-        logger.info("Starting refresh for materialized view donations")
-        start_time = time.time()
-        refresh_matview(connection, 'donations')
-        end_time = time.time()
-        logger.info(f"Finished refresh for materialized view donations in {end_time - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"An error occurred during execution: {e}", exc_info=True)
     finally:
