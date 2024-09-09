@@ -145,9 +145,12 @@ def refresh_matview(connection, matview):
         new_matview_total = get_matview_total(connection, matview)
 
         if old_matview_total is not None and new_matview_total is not None:
-            if new_matview_total < old_matview_total: 
+            if new_matview_total < old_matview_total:
                 logger.warning(f"Total amount for {matview} has decreased from {old_matview_total} to {new_matview_total}")
-            logger.info(f"Materialized view {matview} total amount changed from {old_matview_total} to {new_matview_total}")
+            elif new_matview_total > old_matview_total:
+                logger.info(f"Total amount for {matview} has increased from {old_matview_total} to {new_matview_total}")
+            else:
+                logger.info(f"Total amount for {matview} has remained the same at {old_matview_total}")
 
     except Exception as e:
         logger.error(f"Failed to refresh materialized view {matview}: {e}", exc_info=True)
