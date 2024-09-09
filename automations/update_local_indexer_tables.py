@@ -17,12 +17,16 @@ except ImportError:
 
 # Load database credentials from environment variables
 DB_PARAMS = {
-    'host': os.environ['DB_HOST'],
-    'port': os.environ['DB_PORT'],
+    'host': os.environ.get('DB_HOST'),
+    'port': os.environ.get('DB_PORT'),
     'dbname': 'Grants',
-    'user': os.environ['DB_USER'],
-    'password': os.environ['DB_PASSWORD']
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSWORD')
 }
+
+# Validate DB_PARAMS
+if not all(DB_PARAMS.values()):
+    raise ValueError("Missing database connection parameters. Please check your environment variables.")
 
 # Define materialized view configurations
 MATVIEW_CONFIGS = {
@@ -49,12 +53,18 @@ MATVIEW_CONFIGS = {
 }
 
 def get_connection():
-    return psycopg2.connect(**DB_PARAMS)
+    try:
+        return psycopg2.connect(**DB_PARAMS)
+    except psycopg2.Error as e:
+        logger.error(f"Failed to connect to the database: {e}")
+        raise
 
 def execute_command(connection, command):
     logger.info(f"Executing command: {command[:50]}...")
     try:
         with connection.cursor() as cursor:
+            cursor.execute("SET tcp_keepalives_idle = 180;")  # 3 minutes
+            cursor.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
             cursor.execute(command)
         connection.commit()
         logger.info("Command executed successfully.")
@@ -63,64 +73,23 @@ def execute_command(connection, command):
         connection.rollback()
         raise
 
-def get_total_amount(connection, matview, source='matview'):
+def get_matview_total(connection, matview):
     config = MATVIEW_CONFIGS[matview]
     amount_column = config['amount_column']
     
     if not amount_column:
         return None
     
-    index_columns = ', '.join(config['index_columns'])
+    query = f"SELECT SUM({amount_column}) FROM public.{matview}"
     
-    if source == 'matview':
-        query = f"SELECT SUM({amount_column}) FROM public.{matview}"
-    else:
-        query = f"""
-        WITH ranked_data AS (
-            SELECT 
-                *,
-                ROW_NUMBER() OVER (
-                    PARTITION BY {index_columns}
-                    ORDER BY 
-                        CASE 
-                            WHEN source = 'indexer' THEN 1 
-                            WHEN source = 'static' THEN 2 
-                        END
-                ) as row_num
-            FROM (
-                SELECT *, 'indexer' as source 
-                FROM indexer.{matview} 
-                WHERE chain_id != 11155111
-                UNION ALL
-                SELECT *, 'static' as source 
-                FROM static_indexer_chain_data_75.{matview} 
-                WHERE chain_id != 11155111
-            ) combined_data
-        )
-        SELECT SUM({amount_column})
-        FROM ranked_data
-        WHERE row_num = 1
-        """
-    
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        return cursor.fetchone()[0] or Decimal('0')
-
-def compare_source_and_matview(connection, matview):
-    source_total = get_total_amount(connection, matview, 'source')
-    matview_total = get_total_amount(connection, matview, 'matview')
-    
-    if source_total is not None and matview_total is not None:
-        logger.info(f"Materialized view {matview} amounts:")
-        logger.info(f"  Source total: {source_total}")
-        logger.info(f"  Materialized view total: {matview_total}")
-        
-        if matview_total != source_total:
-            logger.warning(f"Discrepancy in {matview}: Materialized view total ({matview_total}) != Source total ({source_total})")
-    else:
-        logger.info(f"Materialized view {matview} does not have an amount column to compare.")
-        
-    return source_total, matview_total
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            result = cursor.fetchone()
+            return result[0] if result else Decimal('0')
+    except psycopg2.Error as e:
+        logger.error(f"Error fetching matview total for {matview}: {e}")
+        return None
 
 def refresh_matview(connection, matview):
     config = MATVIEW_CONFIGS[matview]
@@ -128,7 +97,7 @@ def refresh_matview(connection, matview):
     order_by = config['order_by']
     
     try:
-        old_source_total, old_matview_total = compare_source_and_matview(connection, matview)
+        old_matview_total = get_matview_total(connection, matview)
 
         refresh_command = f"""
         CREATE OR REPLACE FUNCTION refresh_{matview}()
@@ -173,36 +142,38 @@ def refresh_matview(connection, matview):
         """
         execute_command(connection, index_command)
 
-        new_source_total, new_matview_total = compare_source_and_matview(connection, matview)
+        new_matview_total = get_matview_total(connection, matview)
 
         if old_matview_total is not None and new_matview_total is not None:
-            if new_matview_total < old_matview_total:
+            if new_matview_total < old_matview_total: 
                 logger.warning(f"Total amount for {matview} has decreased from {old_matview_total} to {new_matview_total}")
-            
-            #if new_source_total != new_matview_total:
-            #    logger.error(f"Inconsistency in {matview} after refresh: Source total ({new_source_total}) != Materialized view total ({new_matview_total})")
+            logger.info(f"Materialized view {matview} total amount changed from {old_matview_total} to {new_matview_total}")
 
     except Exception as e:
         logger.error(f"Failed to refresh materialized view {matview}: {e}", exc_info=True)
         raise
 
 def main():
-    connection = get_connection()
+    connection = None
     try:
+        connection = get_connection()
         for matview in [mv for mv in MATVIEW_CONFIGS if mv != 'donations']:
             logger.info(f"Starting refresh for materialized view {matview}")
             start_time = time.time()
             refresh_matview(connection, matview)
             end_time = time.time()
-            logger.info(f"Finished refresh for materialized view {matview} in {end_time - start_time} seconds")
+            logger.info(f"Finished refresh for materialized view {matview} in {end_time - start_time:.2f} seconds")
         
         logger.info("Starting refresh for materialized view donations")
         start_time = time.time()
         refresh_matview(connection, 'donations')
         end_time = time.time()
-        logger.info(f"Finished refresh for materialized view donations in {end_time - start_time} seconds")
+        logger.info(f"Finished refresh for materialized view donations in {end_time - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"An error occurred during execution: {e}", exc_info=True)
     finally:
-        connection.close()
+        if connection:
+            connection.close()
 
 if __name__ == "__main__":
     main()
