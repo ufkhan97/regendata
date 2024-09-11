@@ -84,12 +84,16 @@ def main():
        information_schema.tables
     WHERE table_schema LIKE 'chain_data_%';
     '''
-   
     try:
         server = 'indexer'
         target_schema = 'indexer'
-        version_result = db.run_query(version_query, INDEXER_DB_PARAMS, logger)
-        latest_schema_version = version_result['latest_schema_version'][0]
+        # Uncomment the following lines to automatically fetch the latest schema version
+        # version_result = db.run_query(version_query, INDEXER_DB_PARAMS, logger)
+        # latest_schema_version = version_result['latest_schema_version'][0]
+
+        # Manual override for schema version
+        # Change this value to update the schema version
+        latest_schema_version = 81
         schema_name = f'chain_data_{latest_schema_version}'
         drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
         db.import_foreign_schema(server, schema_name, TABLES_TO_IMPORT, DB_PARAMS, target_schema, logger=logger)
