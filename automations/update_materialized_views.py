@@ -57,6 +57,8 @@ def execute_command(connection, command):
     try:
         with connection.cursor() as cursor:
             cursor.execute("SET statement_timeout = 0;")
+            cursor.execute("SET tcp_keepalives_idle = 180;")  # 3 minutes
+            cursor.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
             cursor.execute(command)
         connection.commit()
         logger.info("Command executed successfully.")
@@ -169,7 +171,7 @@ def drop_old_matviews(connection):
     """Drop old base and dependent materialized views."""
     drop_commands = []
     for matview in BASE_MATVIEWS + DEPENDENT_MATVIEWS:
-        drop_commands.append(f"DROP MATERIALIZED VIEW public.{matview}_old;")
+        drop_commands.append(f"DROP MATERIALIZED VIEW IF EXISTS public.{matview}_old;")
     full_drop_command = "\n".join(drop_commands)
     execute_command(connection, full_drop_command)
 
