@@ -44,7 +44,10 @@ def execute_command(command):
 def main():
 
     command = """
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    DROP MATERIALIZED VIEW IF EXISTS donations_old CASCADE;
+    DROP MATERIALIZED VIEW IF EXISTS applications_old CASCADE;
+    DROP MATERIALIZED VIEW IF EXISTS applications_payouts_old CASCADE;
+    DROP MATERIALIZED VIEW IF EXISTS rounds_old CASCADE;
  
     """
     try:
