@@ -56,7 +56,6 @@ def execute_command(connection, command):
     logger.info(f"Executing command: {command[:100]}...")
     try:
         with connection.cursor() as cursor:
-            cursor.execute("SET statement_timeout = 0;")
             cursor.execute("SET tcp_keepalives_idle = 180;")  # 3 minutes
             cursor.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
             cursor.execute(command)
