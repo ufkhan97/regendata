@@ -28,17 +28,17 @@ if not all(DB_PARAMS.values()):
     raise ValueError("Missing database connection parameters. Please check your environment variables.")
 
 # Define materialized view configurations
-BASE_MATVIEWS = ['applications', 'applications_payouts', 'rounds', 'donations']
+BASE_MATVIEWS = ['applications_payouts', 'rounds',  'donations'] #'applications',
 DEPENDENT_MATVIEWS = ['all_donations', 'all_matching']
 MATVIEW_CONFIGS = {
-    'applications': {
-        'index_columns': ['id', 'chain_id', 'round_id'],
-    },
     'applications_payouts': {
         'index_columns': ['id'],
     },
     'rounds': {
         'index_columns': ['id', 'chain_id'],
+    },
+        'applications': {
+        'index_columns': ['id', 'chain_id', 'round_id'],
     },
     'donations': {
         'index_columns': ['id'],
@@ -108,7 +108,7 @@ def swap_base_matviews(connection):
 
     # Rename old base matviews to '_old' and new ones to original names
     for matview in BASE_MATVIEWS:
-        swap_commands.append(f"ALTER MATERIALIZED VIEW public.{matview} RENAME TO {matview}_old;")
+        #swap_commands.append(f"ALTER MATERIALIZED VIEW public.{matview} RENAME TO {matview}_old;")
         swap_commands.append(f"ALTER MATERIALIZED VIEW public.{matview}_new RENAME TO {matview};")
 
     # Commit transaction
@@ -130,7 +130,7 @@ def create_new_dependent_matviews(connection):
     """Create new versions of dependent materialized views with '_new' suffix."""
     # Create new all_matching_new
     logger.info("Creating new materialized view all_matching_new")
-    with open('automations/queries/all_matching.sql', 'r') as file:
+    with open('queries/all_matching.sql', 'r') as file:
         all_matching_query = file.read()
     create_command = f"""
         CREATE MATERIALIZED VIEW all_matching_new AS
@@ -140,7 +140,7 @@ def create_new_dependent_matviews(connection):
 
     # Create new all_donations_new
     logger.info("Creating new materialized view all_donations_new")
-    with open('automations/queries/all_donations.sql', 'r') as file:
+    with open('queries/all_donations.sql', 'r') as file:
         all_donations_query = file.read()
     create_command = f"""
         CREATE MATERIALIZED VIEW all_donations_new AS
@@ -157,7 +157,7 @@ def swap_dependent_matviews(connection):
 
     # Rename old dependent matviews to '_old' and new ones to original names
     for matview in DEPENDENT_MATVIEWS:
-        swap_commands.append(f"ALTER MATERIALIZED VIEW public.{matview} RENAME TO {matview}_old;")
+        #swap_commands.append(f"ALTER MATERIALIZED VIEW public.{matview} RENAME TO {matview}_old;")
         swap_commands.append(f"ALTER MATERIALIZED VIEW public.{matview}_new RENAME TO {matview};")
 
     # Commit transaction
@@ -183,12 +183,12 @@ def main():
 
         # Step 1: Create new base materialized views
         logger.info("Creating new base materialized views...")
-        create_new_base_matviews(connection)
+        #create_new_base_matviews(connection)
         logger.info("Successfully created new base materialized views.")
 
         # Step 2: Swap base materialized views
         logger.info("Swapping base materialized views...")
-        swap_base_matviews(connection)
+        #swap_base_matviews(connection)
         logger.info("Successfully swapped base materialized views.")
 
         # Step 3: Create or replace indexer_matching view

@@ -19,7 +19,7 @@ except ImportError:
 
 
 # Constants for table names
-TABLES_TO_DROP = ['rounds', 'donations', 'applications', 'applications_payouts']
+TABLES_TO_DROP = ['rounds', 'donations', 'applications_payouts'] #applications
 TABLES_TO_IMPORT = ['rounds', 'donations', 'applications_payouts']
 APPLICATIONS_TABLE_DEFINITION = """
 CREATE FOREIGN TABLE indexer.applications (
@@ -97,7 +97,7 @@ def main():
         schema_name = f'chain_data_{latest_schema_version}'
         drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
         db.import_foreign_schema(server, schema_name, TABLES_TO_IMPORT, DB_PARAMS, target_schema, logger=logger)
-        create_applications_table(schema_name, DB_PARAMS, logger)
+        #create_applications_table(schema_name, DB_PARAMS, logger)
         logger.info(f"Schema update completed successfully to version {latest_schema_version}.")
     except Exception as e:
         logger.error(f"Schema update failed: {e}")
