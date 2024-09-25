@@ -93,7 +93,7 @@ def main():
 
         # Manual override for schema version
         # Change this value to update the schema version
-        latest_schema_version = 83
+        latest_schema_version = 85
         schema_name = f'chain_data_{latest_schema_version}'
         drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
         db.import_foreign_schema(server, schema_name, TABLES_TO_IMPORT, DB_PARAMS, target_schema, logger=logger)
