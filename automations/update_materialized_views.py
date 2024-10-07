@@ -3,6 +3,14 @@ import psycopg2
 import logging
 import time
 
+# TO DO: 
+# Consider how to Incoporate Updating Schema Into Pipeline
+# If we want to update the schema, it would change the foreign tables in the database
+# This would require us to drop the foreign tables and recreate them, which would drop the materialized views
+# We would need to update the materialized views to reflect the new schema
+# Unless we can either: drop the foreign tables and recreate them without dropping the materialized views, 
+# or update the foreign tables without dropping them (if that's possible while changing the schema)
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
