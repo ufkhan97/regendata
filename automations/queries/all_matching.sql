@@ -63,6 +63,6 @@ SELECT
     project_id,
     round_id,
     chain_id,
-    '' as timestamp
+    NULL as timestamp
 FROM 
     static_matching
