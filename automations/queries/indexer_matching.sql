@@ -2,7 +2,7 @@ SELECT
     r.id AS round_id,
     r.chain_id,
     (r.round_metadata #>> '{name}')::TEXT AS round_name,
-    TO_TIMESTAMP(r.matching_distribution->>'blockTimestamp', 'YYYY-MM-DD"T"HH24:MI:SS.MSZ') AS btimestamp,
+    TO_TIMESTAMP(r.matching_distribution->>'blockTimestamp', 'YYYY-MM-DD"T"HH24:MI:SS.MSZ') AS timestamp,
     md.value->>'projectId' AS project_id,
     md.value->>'projectName' AS project_name,
     md.value->>'applicationId' AS application_id,

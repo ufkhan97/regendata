@@ -206,17 +206,17 @@ def main():
 
         # Step 4: Create dependent materialized views
         logger.info("Creating dependent materialized views...")
-        create_new_dependent_matviews(connection)
+        #create_new_dependent_matviews(connection)
         logger.info("Successfully created dependent materialized views.")
 
         # Step 5: Swap dependent materialized views
         logger.info("Swapping dependent materialized views...")
-        swap_dependent_matviews(connection)
+       # swap_dependent_matviews(connection)
         logger.info("Successfully swapped dependent materialized views.")
 
         # Step 6: Drop old materialized views
         logger.info("Dropping old materialized views...")
-        drop_old_matviews(connection)
+        #drop_old_matviews(connection)
         logger.info("Successfully dropped old materialized views.")
 
         logger.info("All materialized views updated successfully.")

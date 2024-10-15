@@ -30,16 +30,16 @@ def execute_command(command):
         connection = psycopg2.connect(**DB_PARAMS)
         cursor = connection.cursor()
         cursor.execute(command)
-        result = cursor.fetchall()
         connection.commit()
         logger.info("Command executed successfully.")
-        return result
     except psycopg2.Error as e:
         logger.error(f"Database error: {e}")
         if connection:
             connection.rollback()
         raise
     finally:
+        if cursor:
+            cursor.close()
         if connection:
             connection.close()
 
@@ -49,37 +49,11 @@ def main():
         'index_columns': ['id', 'chain_id', 'round_id'],
     }
     command = """
-    EXPLAIN 
-    CREATE MATERIALIZED VIEW public.applications_new AS
-    WITH ranked_data AS (
-        SELECT 
-            *,
-            ROW_NUMBER() OVER (
-                PARTITION BY id, chain_id, round_id
-                ORDER BY 
-                    CASE 
-                        WHEN source = 'indexer' THEN 1 
-                        WHEN source = 'static' THEN 2 
-                    END
-            ) as row_num
-        FROM (
-            SELECT *, 'indexer' as source 
-            FROM indexer.applications 
-            WHERE chain_id != 11155111
-            UNION ALL
-            SELECT *, 'static' as source 
-            FROM static_indexer_chain_data_75.applications 
-            WHERE chain_id != 11155111
-        ) combined_data
-    )
-    SELECT * FROM ranked_data WHERE row_num = 1;
+    DROP VIEW IF EXISTS public.indexer_matching CASCADE;
     """
     try:
-        result = execute_command(command)
+        execute_command(command)
         logger.info("Successfully executed the command")
-        logger.info("Explain output:")
-        for row in result:
-            logger.info(row[0])
     except Exception as e:
         logger.error(f"Failed to complete operation: {e}", exc_info=True)
 
