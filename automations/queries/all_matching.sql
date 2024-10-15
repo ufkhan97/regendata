@@ -19,7 +19,8 @@ WITH gg_rounds AS (
      project_payout_address as recipient_address,
      project_id,
      im.round_id,
-     im.chain_id
+     im.chain_id,
+     im.timestamp
   FROM 
   indexer_matching im
   LEFT JOIN gg_rounds gg 
@@ -41,7 +42,8 @@ SELECT
     recipient_address,
     project_id,
     round_id,
-    chain_id
+    chain_id,
+    timestamp
 FROM 
     grants_stack_matching
 UNION
@@ -60,6 +62,7 @@ SELECT
     payoutaddress as recipient_address,
     project_id,
     round_id,
-    chain_id
+    chain_id,
+    '' as timestamp
 FROM 
     static_matching

@@ -1,7 +1,8 @@
 SELECT 
     r.id AS round_id,
     r.chain_id,
-    (r."round_metadata" #>> array['name'])::text AS "round_name",
+    (r.round_metadata #>> '{name}')::TEXT AS round_name,
+    TO_TIMESTAMP(r.matching_distribution->>'blockTimestamp', 'YYYY-MM-DD"T"HH24:MI:SS.MSZ') AS btimestamp,
     md.value->>'projectId' AS project_id,
     md.value->>'projectName' AS project_name,
     md.value->>'applicationId' AS application_id,
@@ -12,7 +13,8 @@ SELECT
     md.value->>'originalMatchAmountInToken' AS original_match_amount_in_token,
     (CAST(md.value->>'matchPoolPercentage' AS NUMERIC) * r.match_amount_in_usd) AS match_amount_in_usd
 FROM 
-    rounds r,
+    rounds r
+CROSS JOIN LATERAL
     jsonb_array_elements(r.matching_distribution->'matchingDistribution') AS md(value)
 WHERE 
-    chain_id != 11155111
+    r.chain_id != 11155111
