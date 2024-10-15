@@ -30,11 +30,11 @@ if not all(DB_PARAMS.values()):
 
 # Define materialized view configurations
 MATVIEW_CONFIGS = {
- #   'applications': {
-#        'index_columns': ['id', 'chain_id', 'round_id'],
-#        'order_by': 'id DESC, chain_id DESC, round_id DESC',
-#        'amount_column': None
- #   },
+    'applications': {
+        'index_columns': ['id', 'chain_id', 'round_id'],
+        'order_by': 'id DESC, chain_id DESC, round_id DESC',
+        'amount_column': None
+    },
     'applications_payouts': {
         'index_columns': ['id'],
         'order_by': 'id DESC',
