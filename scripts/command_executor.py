@@ -45,12 +45,21 @@ def execute_command(command):
 
 
 def main():
-    applications = {
-        'index_columns': ['id', 'chain_id', 'round_id'],
-    }
-    command = """
-    DROP VIEW IF EXISTS public.indexer_matching CASCADE;
+    try:
+        with open('../automations/queries/static_matching.sql', 'r') as file:
+            static_matching_query = file.read()
+    except FileNotFoundError:
+        logger.error("File 'automations/queries/static_matching.sql' not found.")
+        return
+        static_matching_query = file.read()
+
+    command = f"""
+    DROP VIEW IF EXISTS public.static_matching CASCADE;
+    CREATE MATERIALIZED VIEW public.static_matching AS
+    {static_matching_query};
+    REFRESH MATERIALIZED VIEW public.static_matching;
     """
+
     try:
         execute_command(command)
         logger.info("Successfully executed the command")
