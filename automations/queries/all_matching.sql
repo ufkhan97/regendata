@@ -30,7 +30,7 @@ WITH gg_rounds AS (
 SELECT 
     encode(
         digest(
-            round_num::text || title || match_amount_in_usd::text || recipient_address || 
+             title || match_amount_in_usd::text || recipient_address || 
             project_id || round_id || chain_id::text,
             'sha256'
         ),
