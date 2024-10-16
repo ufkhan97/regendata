@@ -54,7 +54,7 @@ def main():
         static_matching_query = file.read()
 
     command = f"""
-    DROP VIEW IF EXISTS public.static_matching CASCADE;
+    DROP MATERIALIZED VIEW IF EXISTS public.static_matching CASCADE;
     CREATE MATERIALIZED VIEW public.static_matching AS
     {static_matching_query};
     REFRESH MATERIALIZED VIEW public.static_matching;

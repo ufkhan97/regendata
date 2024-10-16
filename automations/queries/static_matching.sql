@@ -23,7 +23,7 @@ cgrants_matching AS (
     cg."payoutaddress" AS "payoutaddress",
     cg."grant_id" AS "project_id",
     cgm."payout_tx_date" AS "payout_tx_date"
-  FROM "experimental_views"."cgrants_matching_timing_20241016185711" cgm
+  FROM "experimental_views"."cgrants_matching_timing2_20241016193840" cgm
   LEFT JOIN cgrants cg ON cg."grant_id" = cgm."grant_id"
 ),
 gg_rounds AS (
