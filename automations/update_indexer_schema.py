@@ -19,8 +19,8 @@ except ImportError:
 
 
 # Constants for table names
-TABLES_TO_DROP = ['rounds', 'donations', 'applications_payouts', 'applications']
-TABLES_TO_IMPORT = ['rounds', 'donations', 'applications_payouts']
+TABLES_TO_DROP = ['rounds', 'donations', 'applications_payouts', 'applications', 'round_roles']
+TABLES_TO_IMPORT = [ 'rounds', 'donations', 'applications_payouts', 'round_roles']
 APPLICATIONS_TABLE_DEFINITION = """
 CREATE FOREIGN TABLE indexer.applications (
   id text OPTIONS (column_name 'id') COLLATE pg_catalog."default" NOT NULL,
@@ -75,6 +75,20 @@ def create_applications_table(schema, db_params, logger=None):
     create_command = APPLICATIONS_TABLE_DEFINITION.format(schema=schema)
     db.execute_command(create_command, db_params, logger)
 
+
+def check_table_exists(schema, table, db_params):
+    query = f"""
+    SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = '{schema}'
+        AND table_name = '{table}'
+    );
+    """
+    result = db.run_query(query, db_params, logger)
+    logger.info(f"Table {table} exists in {schema}: {result}")
+
+
+
 # Main execution logic
 def main():
     version_query = '''
@@ -95,6 +109,8 @@ def main():
         # Change this value to update the schema version
         latest_schema_version = 86
         schema_name = f'chain_data_{latest_schema_version}'
+        check_table_exists(schema_name, 'round_roles', INDEXER_DB_PARAMS)
+
         drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
         db.import_foreign_schema(server, schema_name, TABLES_TO_IMPORT, DB_PARAMS, target_schema, logger=logger)
         create_applications_table(schema_name, DB_PARAMS, logger)
