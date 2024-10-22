@@ -19,8 +19,8 @@ except ImportError:
 
 
 # Constants for table names
-TABLES_TO_DROP = ['rounds', 'donations', 'applications_payouts', 'applications', 'round_roles']
-TABLES_TO_IMPORT = [ 'rounds', 'donations', 'applications_payouts', 'round_roles']
+TABLES_TO_DROP = ['rounds', 'donations', 'applications_payouts', 'applications']#, 'round_roles']
+TABLES_TO_IMPORT = [ 'rounds', 'donations', 'applications_payouts']#, 'round_roles']
 APPLICATIONS_TABLE_DEFINITION = """
 CREATE FOREIGN TABLE indexer.applications (
   id text OPTIONS (column_name 'id') COLLATE pg_catalog."default" NOT NULL,

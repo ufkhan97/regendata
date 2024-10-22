@@ -35,11 +35,6 @@ MATVIEW_CONFIGS = {
         'order_by': 'id DESC, chain_id DESC, round_id DESC',
         'amount_column': None
     },
-    'applications_payouts': {
-        'index_columns': ['id'],
-        'order_by': 'id DESC',
-        'amount_column': 'amount_in_usd'
-    },
     'rounds': {
         'index_columns': ['id', 'chain_id'],
         'order_by': 'id DESC, chain_id DESC',
@@ -49,7 +44,12 @@ MATVIEW_CONFIGS = {
         'index_columns': ['id'],
         'order_by': 'id DESC',
         'amount_column': 'amount_in_usd'
-    }
+    },
+        # 'applications_payouts': {
+        # 'index_columns': ['id'],
+        # 'order_by': 'id DESC',
+        # 'amount_column': 'amount_in_usd'
+        # }
 }
 
 def get_connection():
