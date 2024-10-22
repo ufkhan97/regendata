@@ -45,11 +45,11 @@ MATVIEW_CONFIGS = {
         'order_by': 'id DESC',
         'amount_column': 'amount_in_usd'
     },
-        # 'applications_payouts': {
-        # 'index_columns': ['id'],
-        # 'order_by': 'id DESC',
-        # 'amount_column': 'amount_in_usd'
-        # }
+    'applications_payouts': {
+        'index_columns': ['id'],
+        'order_by': 'id DESC',
+        'amount_column': 'amount_in_usd'
+    }
 }
 
 def get_connection():
