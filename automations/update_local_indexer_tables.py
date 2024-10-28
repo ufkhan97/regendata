@@ -49,7 +49,12 @@ MATVIEW_CONFIGS = {
         'index_columns': ['id'],
         'order_by': 'id DESC',
         'amount_column': 'amount_in_usd'
-    }
+    },
+    # 'round_roles': {
+    #     'index_columns': ['chain_id', 'round_id', 'address', 'role'],
+    #     'order_by': 'chain_id DESC, round_id DESC, address DESC, role DESC',
+    #     'amount_column': None
+    # }
 }
 
 def get_connection():
