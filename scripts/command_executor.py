@@ -45,19 +45,18 @@ def execute_command(command):
 
 
 def main():
+    query_file_path = '../automations/queries/allo_gmv_with_ens.sql'
     try:
-        with open('../automations/queries/static_matching.sql', 'r') as file:
-            static_matching_query = file.read()
+        with open(query_file_path, 'r') as file:
+            query = file.read()
     except FileNotFoundError:
-        logger.error("File 'automations/queries/static_matching.sql' not found.")
+        logger.error(f"File {query_file_path} not found.")
         return
-        static_matching_query = file.read()
 
     command = f"""
-    DROP MATERIALIZED VIEW IF EXISTS public.static_matching CASCADE;
-    CREATE MATERIALIZED VIEW public.static_matching AS
-    {static_matching_query};
-    REFRESH MATERIALIZED VIEW public.static_matching;
+    DROP MATERIALIZED VIEW IF EXISTS experimental_views.allo_gmv_leaderboard_events CASCADE;
+    CREATE MATERIALIZED VIEW experimental_views.allo_gmv_leaderboard_events AS
+    {query};
     """
 
     try:
