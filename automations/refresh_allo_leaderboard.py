@@ -8,11 +8,16 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Try to load .env file if it exists
-if load_dotenv():
-    logger.info("Loaded .env file")
-else:
-    logger.info("No .env file found or loaded")
+# Try to load .env file if it exists (for local development)
+try:
+    from dotenv import load_dotenv
+    if load_dotenv():
+        logger.info("Loaded .env file")
+    else:
+        logger.info("No .env file found or loaded")
+except ImportError:
+    logger.info("dotenv not installed, skipping .env file loading")
+
 
 # Load database credentials from environment variables
 DB_PARAMS = {
@@ -45,7 +50,7 @@ def execute_command(command):
 
 
 def main():
-    query_file_path = '../queries/allo_gmv_with_ens.sql'
+    query_file_path = 'queries/allo_gmv_with_ens.sql'
     try:
         with open(query_file_path, 'r') as file:
             query = file.read()
