@@ -50,7 +50,7 @@ def execute_command(command):
 
 
 def main():
-    query_file_path = 'queries/allo_gmv_with_ens.sql'
+    query_file_path = 'automations/queries/allo_gmv_with_ens.sql'
     try:
         with open(query_file_path, 'r') as file:
             query = file.read()
