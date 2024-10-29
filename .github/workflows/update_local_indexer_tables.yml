@@ -40,5 +40,8 @@ jobs:
     - name: Update All Donations & All Matching
       run: python automations/update_all_donations_and_matching_matviews.py
       timeout-minutes: 55
+    - name: Update Allo Leaderboard
+      run: python automations/refresh_allo_leaderboard.py
+      timeout-minutes: 55
 
 
