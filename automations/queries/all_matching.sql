@@ -7,7 +7,7 @@ WITH gg_rounds AS (
         gg.round_name AS round_name,
         gg.round_id AS round_id
     FROM
-        experimental_views.all_rounds_20240810172652 gg
+        experimental_views.all_rounds_20241029131838 gg
 ),
  grants_stack_matching as ( 
   SELECT 
