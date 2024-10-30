@@ -164,4 +164,5 @@ SELECT
 FROM all_points ap
 LEFT JOIN "experimental_views"."ens_names_allo_donors_20241022231136" ens 
     ON ap.address = ens.address
-WHERE ap.address IS NOT NULL;
+WHERE ap.address IS NOT NULL
+AND ap.gmv >= 0.5;
