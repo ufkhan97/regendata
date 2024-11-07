@@ -391,6 +391,7 @@ SELECT
     ag.address,
     ag.role,
     ag.gmv,
+    ag.data_source,
     ens.name
 FROM
     all_gmv ag
