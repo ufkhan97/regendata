@@ -1,4 +1,4 @@
-name: Update Indexer Schema
+name: Every Day (Update Foreign Schema)
 
 on:
   schedule:
@@ -19,6 +19,11 @@ jobs:
       INDEXER_DB_NAME: ${{ secrets.INDEXER_DB_NAME }}
       INDEXER_DB_USER: ${{ secrets.INDEXER_DB_USER }}
       INDEXER_DB_PASSWORD: ${{ secrets.INDEXER_DB_PASSWORD }}
+      MACI_DB_HOST: ${{ secrets.MACI_DB_HOST }}
+      MACI_DB_PORT: ${{ secrets.MACI_DB_PORT }}
+      MACI_DB_NAME: ${{ secrets.MACI_DB_NAME }}
+      MACI_DB_USER: ${{ secrets.MACI_DB_USER }}
+      MACI_DB_PASSWORD: ${{ secrets.MACI_DB_PASSWORD }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -31,6 +36,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Execute Python script
-      run: python automations/update_indexer_schema.py
+      run: python automations/update_foreign_schema.py
 
 
