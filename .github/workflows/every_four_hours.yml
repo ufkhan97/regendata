@@ -20,6 +20,7 @@ jobs:
       INDEXER_DB_USER: ${{ secrets.INDEXER_DB_USER }}
       INDEXER_DB_PASSWORD: ${{ secrets.INDEXER_DB_PASSWORD }}
       DB_FDW_USERS: ${{ secrets.DB_FDW_USERS }}
+      DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
