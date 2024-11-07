@@ -350,17 +350,18 @@ distribution_contract_dev_gmv AS (
 dune_gmv AS (
     SELECT
         blockchain,
-        cm.chain_id as chain_id,
-        '' as pool_name,
+        cm.chain_id AS chain_id,
+        '' AS pool_name,
         '' AS round_id,
-        tx_timestamp::timestamp with time zone AS tx_timestamp,
+        tx_timestamp::timestamp WITH TIME ZONE AS tx_timestamp,
         tx_hash,
         address,
         strategy_name,
         role,
-        number_of_points AS gmv
-    FROM "experimental_views"."dune_allo_gmv_distirbutions_20241028210437" dune
-    LEFT JOIN chain_mapping cm ON cm.chain_name = dune.blockchain
+        gmv
+    FROM "experimental_views"."allov2_distribution_events_for_leaderboard" dune
+    LEFT JOIN chain_mapping cm 
+        ON cm.chain_name = dune.blockchain
     WHERE strategy_name != 'DonationVotingMerkleDistributionDirectTransferStrategy'
 )
 
@@ -389,7 +390,6 @@ SELECT
     ag.tx_hash,
     ag.address,
     ag.role,
-    ag.data_source,
     ag.gmv,
     ens.name
 FROM
