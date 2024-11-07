@@ -25,3 +25,6 @@ jobs:
     - name: Update Allo Leaderboard
       run: python automations/refresh_allo_leaderboard.py
       timeout-minutes: 55
+    - name: Update Permissions
+      run: python automations/create_foreign_data_users.py
+      timeout-minutes: 55
