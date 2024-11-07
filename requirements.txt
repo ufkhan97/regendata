@@ -6,3 +6,5 @@ gspread
 oauth2client
 networkx
 pyarrow
+dune-client
+
