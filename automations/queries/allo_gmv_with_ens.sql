@@ -364,7 +364,7 @@ maci_donations AS (
     SELECT
         c.round_id,
         c.chain_id,
-        contributor_address,
+        LOWER(contributor_address) as contributor_address,
         transaction_hash,
         (r.round_metadata #>> '{name}')::TEXT AS pool_name,
         'MACIQF' as strategy_name,
