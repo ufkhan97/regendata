@@ -6,6 +6,9 @@ on:
     - cron:  '0 5 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write  # Needed for committing back to the repo
+
 jobs:
   run-script:
     runs-on: ubuntu-latest
@@ -24,6 +27,8 @@ jobs:
       MACI_DB_NAME: ${{ secrets.MACI_DB_NAME }}
       MACI_DB_USER: ${{ secrets.MACI_DB_USER }}
       MACI_DB_PASSWORD: ${{ secrets.MACI_DB_PASSWORD }}
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -35,7 +40,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Execute Python script
+    - name: Update Foreign Schema
       run: python automations/update_foreign_schema.py
+    - name: Upload non-GS Allo data From Sheet
+      run: python automations/upload_non_gs_allo_data.py
 
 
