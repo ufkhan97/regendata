@@ -1,9 +1,10 @@
 import os
+import json
 import psycopg2 as pg
 import pandas as pd
 import logging
-import db_utils as db
-from typing import List, Dict, Optional
+import subprocess
+from typing import Dict, Optional, List
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ except ImportError:
     logger.info("dotenv not installed, skipping .env file loading")
 
 class DatabaseConfig:
-    def __init__(self, name: str, tables_config: Dict, db_params: Dict, default_version: Optional[int] = None):
+    def __init__(self, name: str, tables_config: Dict, db_params: Dict):
         self.name = name
         self.server = name
         self.schema = name
@@ -27,12 +28,10 @@ class DatabaseConfig:
         self.tables_to_import = tables_config.get('import', [])
         self.tables_to_create = tables_config.get('create', [])
         self.db_params = db_params
-        self.default_version = default_version  # Allow setting a default schema version
 
 # Configuration for different database targets
 MACI_CONFIG = DatabaseConfig(
     name='maci',
-    default_version=None,  # Will use auto-detection
     tables_config={
         'drop': [
             'round_roles',
@@ -97,7 +96,7 @@ DB_PARAMS = {
     'password': os.getenv('DB_PASSWORD')
 }
 
-# Table definitions template with parameterized schema and server
+# Table definitions
 TABLE_DEFINITIONS = {
     'applications': """
     CREATE FOREIGN TABLE {target_schema}.applications (
@@ -134,6 +133,46 @@ TABLE_DEFINITIONS = {
     OPTIONS (schema_name '{schema}', table_name 'round_roles');
     """
 }
+
+def load_schema_versions() -> Dict[str, Optional[int]]:
+    """Load current schema versions from JSON file."""
+    try:
+        with open('schema_versions.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.info("No existing schema_versions.json found, creating new one")
+        return {"maci": None, "indexer": None}
+
+def save_schema_versions(versions: Dict[str, Optional[int]]) -> None:
+    """Save schema versions to JSON file and commit changes."""
+    # Convert any numpy integers to Python integers
+    converted_versions = {
+        k: int(v) if v is not None else None 
+        for k, v in versions.items()
+    }
+    
+    with open('schema_versions.json', 'w') as f:
+        json.dump(converted_versions, f, indent=2)
+    
+    try:
+        # Configure git
+        subprocess.run(['git', 'config', '--local', 'user.email', 'github-actions[bot]@users.noreply.github.com'])
+        subprocess.run(['git', 'config', '--local', 'user.name', 'github-actions[bot]'])
+        
+        # Stage and commit changes
+        subprocess.run(['git', 'add', 'schema_versions.json'])
+        result = subprocess.run(['git', 'commit', '-m', 'Update schema versions [skip ci]'],
+                              capture_output=True, text=True)
+        
+        # Only push if there were actual changes
+        if "nothing to commit" not in result.stdout:
+            subprocess.run(['git', 'push'])
+            logger.info("Committed and pushed schema version updates")
+        else:
+            logger.info("No changes to schema versions")
+            
+    except Exception as e:
+        logger.error(f"Failed to commit schema version updates: {e}")
 
 def run_query(query: str, db_params: Dict) -> Optional[pd.DataFrame]:
     """Run a query and return the results as a DataFrame."""
@@ -180,7 +219,7 @@ def import_foreign_schema(schema: str, tables: List[str], db_params: Dict, serve
     INTO {target_schema}
     OPTIONS (import_default 'true');
     """
-    logger.info(f"Importing foreign schema {schema} into local schema {target_schema} from server {server}")
+    logger.info(f"Importing foreign schema {schema} into local schema {target_schema}")
     execute_command(import_command, db_params)
 
 def create_table_from_definition(
@@ -220,21 +259,32 @@ def get_latest_schema_version(db_params: Dict) -> Optional[int]:
     logger.info(f"Found latest schema version: {version}")
     return version
 
-def update_schema(config: DatabaseConfig, schema_version: Optional[int] = None) -> None:
-    """Update schema for a specific database configuration."""
+def update_schema(config: DatabaseConfig) -> Optional[int]:
+    """Update schema for a specific database configuration. Returns the new version if updated."""
     try:
-        if schema_version is None:
-            schema_version = get_latest_schema_version(config.db_params)
-            if schema_version is None:
-                raise ValueError(f"Could not determine schema version for {config.name}")
+        # For indexer, always use version 86
+        if config.name == 'indexer':
+            new_version = 86
+        else:
+            new_version = get_latest_schema_version(config.db_params)
+        if new_version is None:
+            raise ValueError(f"Could not determine schema version for {config.name}")
         
-        schema_name = f'chain_data_{schema_version}'
-        logger.info(f"Updating {config.name} schema to version {schema_version}")
+        # Load existing versions
+        current_versions = load_schema_versions()
+        current_version = current_versions.get(config.name)
         
-        # Drop existing tables
+        # Skip if version hasn't changed
+        if current_version == new_version:
+            logger.info(f"Schema {config.name} already at version {new_version}, skipping update")
+            return None
+            
+        logger.info(f"Updating {config.name} schema from version {current_version} to {new_version}")
+        
+        schema_name = f'chain_data_{new_version}'
+        
+        # Perform the update
         drop_foreign_tables(config.tables_to_drop, config.schema, DB_PARAMS)
-        
-        # Import specified tables
         import_foreign_schema(
             schema_name,
             config.tables_to_import,
@@ -243,7 +293,6 @@ def update_schema(config: DatabaseConfig, schema_version: Optional[int] = None) 
             config.schema
         )
         
-        # Create tables from definitions
         for table in config.tables_to_create:
             create_table_from_definition(
                 table,
@@ -252,54 +301,42 @@ def update_schema(config: DatabaseConfig, schema_version: Optional[int] = None) 
                 config.server,
                 DB_PARAMS
             )
-            
+        
+        # Update version file
+        current_versions[config.name] = new_version
+        save_schema_versions(current_versions)
+        
         logger.info(f"Schema update completed successfully for {config.name}")
+        return new_version
         
     except Exception as e:
         logger.error(f"Schema update failed for {config.name}: {e}")
         raise
 
-def test_connection(db_params: Dict, name: str) -> bool:
-    """Test database connection and list available schemas."""
-    try:
-        with pg.connect(**db_params) as conn:
-            with conn.cursor() as cur:
-                # Test basic connection
-                cur.execute("SELECT current_database(), current_user;")
-                db, user = cur.fetchone()
-                logger.info(f"Connected to {name} database: {db} as user: {user}")
-                
-                # List schemas matching our pattern
-                cur.execute("""
-                    SELECT table_schema 
-                    FROM information_schema.tables 
-                    WHERE table_schema LIKE 'chain_data_%'
-                    GROUP BY table_schema 
-                    ORDER BY table_schema DESC 
-                    LIMIT 5;
-                """)
-                schemas = [row[0] for row in cur.fetchall()]
-                logger.info(f"Found recent chain_data schemas in {name}: {schemas}")
-                return True
-    except Exception as e:
-        logger.error(f"Failed to connect to {name} database: {e}")
-        return False
-
 def main():
     """Main execution function."""
-    # Test connections first
-    maci_ok = test_connection(MACI_CONFIG.db_params, "MACI")
-    indexer_ok = test_connection(INDEXER_CONFIG.db_params, "Indexer")
     try:
+        updates = []
+        
         # Update MACI schema
-        #update_schema(MACI_CONFIG)
+        maci_version = update_schema(MACI_CONFIG)
+        if maci_version:
+            updates.append(f"MACI to {maci_version}")
         
-        # Update Indexer schema with specific version
-        update_schema(INDEXER_CONFIG, schema_version=86)
-        
+        # Update Indexer schema
+        indexer_version = update_schema(INDEXER_CONFIG)
+        if indexer_version:
+            updates.append(f"Indexer to {indexer_version}")
+            
+        if updates:
+            logger.info(f"Successfully updated schemas: {', '.join(updates)}")
+        else:
+            logger.info("No schema updates were necessary")
+            
     except Exception as e:
         logger.error(f"Schema update failed: {e}")
         print("Schema update failed.")
+        exit(1)
 
 if __name__ == "__main__":
     main()

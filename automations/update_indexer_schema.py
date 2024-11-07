@@ -91,11 +91,35 @@ DB_PARAMS = {
     'password': os.getenv('DB_PASSWORD')
 }
 
-def drop_foreign_tables(tables, db_params):
-    """Drop specified foreign tables."""
+def run_query(query, db_params):
+    """Run a query and return the results as a DataFrame."""
+    try:
+        with pg.connect(**db_params) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query)
+                col_names = [desc[0] for desc in cur.description]
+                results = pd.DataFrame(cur.fetchall(), columns=col_names)
+                return results
+    except pg.Error as e:
+        logger.error(f"ERROR: Could not execute the query. {e}")
+        return None
+
+def execute_command(command, db_params):
+    """Execute a SQL command that doesn't return results."""
+    try:
+        with pg.connect(**db_params) as conn:
+            with conn.cursor() as cur:
+                cur.execute(command)
+                conn.commit()
+                logger.info("Command executed successfully.")
+    except pg.Error as e:
+        logger.error(f"ERROR: Could not execute the command. {e}")
+
+def drop_foreign_tables(tables, schema, db_params):
+    """Drop specified foreign tables from the given schema."""
     for table in tables:
-        drop_command = f'DROP FOREIGN TABLE IF EXISTS indexer.{table} CASCADE;'
-        db.execute_command(drop_command, db_params, logger)
+        drop_command = f'DROP FOREIGN TABLE IF EXISTS {schema}.{table} CASCADE;'
+        execute_command(drop_command, db_params)
 
 def create_table_from_definition(table_name, schema, db_params, logger=None):
     """Create a table from its definition."""
@@ -140,7 +164,7 @@ def main():
         latest_schema_version = 86 # Change this value to update the schema version
         schema_name = f'chain_data_{latest_schema_version}'
 
-        drop_foreign_tables(TABLES_TO_DROP, DB_PARAMS)
+        drop_foreign_tables(TABLES_TO_DROP, target_schema, DB_PARAMS)
         db.import_foreign_schema(server, schema_name, TABLES_TO_IMPORT, DB_PARAMS, target_schema, logger=logger)
         for table in TABLES_TO_CREATE_FROM_DEFINITION:
             create_table_from_definition(table, schema_name, DB_PARAMS, logger)
