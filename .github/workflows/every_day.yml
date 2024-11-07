@@ -1,4 +1,4 @@
-name: Every Day (Update Foreign Schema)
+name: Every Day (Update Foreign Schema, GSheets)
 
 on:
   schedule:
