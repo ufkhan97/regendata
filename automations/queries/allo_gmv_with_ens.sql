@@ -35,15 +35,16 @@ WITH chain_mapping AS (
     ) AS t(chain_id, chain_name)
 ),
 
--- Common round operators structure
-round_operators AS (
+--  round operators structure
+ round_operators AS (
     SELECT 
         r.chain_id,
         r.round_id,
         r.address,
         'round_operator' AS role,
         COUNT(r.address) OVER (PARTITION BY r.chain_id, r.round_id) AS count_addresses
-    FROM indexer.round_roles r
+    FROM 
+         indexer.round_roles r
     GROUP BY r.chain_id, r.round_id, r.address
 ),
 
@@ -346,22 +347,125 @@ distribution_contract_dev_gmv AS (
         AND ca.blockchain = g.blockchain
     GROUP BY 1,2,3,4,5,6,7,8,9
 ),
--- STREAM 3: DUNE --
+-- STREAM 3: MACI CONTRIBUTIONS --
+
+maci_round_operators AS (
+    SELECT 
+        r.chain_id,
+        r.round_id,
+        r.address,
+        'round_operator' AS role,
+        COUNT(r.address) OVER (PARTITION BY r.chain_id, r.round_id) AS count_addresses
+    FROM 
+         maci.round_roles r
+    GROUP BY r.chain_id, r.round_id, r.address
+),
+maci_donations AS (
+    SELECT
+        c.round_id,
+        c.chain_id,
+        contributor_address,
+        transaction_hash,
+        (r.round_metadata #>> '{name}')::TEXT AS pool_name,
+        'MACIQF' as strategy_name,
+        sum(voice_credit_balance)/ (100000) * 3000 as gmv,
+        max(timestamp)::timestamp with time zone as tx_timestamp
+    FROM maci.contributions c
+    LEFT JOIN maci.rounds r on r.id = c.round_id AND r.chain_id = c.chain_id
+    GROUP BY 1,2,3,4,5,6
+),
+
+-- Contract developers for MACI - always split between both addresses
+maci_contract_devs AS (
+    SELECT 
+        'MACIQF' as strategy_name,
+        blockchain,
+        dev_address,
+        2 as address_count  -- Fixed count of 2 for even split between both addresses
+    FROM (
+        SELECT DISTINCT 
+            cm.chain_name as blockchain,
+            unnest(ARRAY[
+                '0x8c180840fcbb90ce8464b4ecd12ab0f840c6647c',
+                '0xc72492618dff005ef57688281b5c78fbc5912287'
+            ]) as dev_address
+        FROM maci_donations md
+        LEFT JOIN chain_mapping cm ON cm.chain_id = md.chain_id
+    ) base
+),
+
+-- MACI donor GMV
+maci_donor_gmv AS (
+    SELECT 
+        cm.chain_name as blockchain,
+        md.chain_id,
+        md.pool_name,
+        md.round_id,
+        md.tx_timestamp,
+        md.transaction_hash as tx_hash,
+        md.contributor_address as address,
+        md.strategy_name,
+        'donor' as role,
+        md.gmv
+    FROM maci_donations md
+    LEFT JOIN chain_mapping cm ON cm.chain_id = md.chain_id
+),
+
+-- MACI round operator GMV
+maci_round_operator_gmv AS (
+    SELECT 
+        cm.chain_name as blockchain,
+        md.chain_id,
+        md.pool_name,
+        md.round_id,
+        md.tx_timestamp,
+        md.transaction_hash as tx_hash,
+        ro.address,
+        md.strategy_name,
+        'round_operator' AS role,
+        SUM(md.gmv / ro.count_addresses) AS gmv
+    FROM maci_donations md
+    LEFT JOIN chain_mapping cm ON cm.chain_id = md.chain_id
+    LEFT JOIN maci_round_operators ro 
+        ON ro.chain_id = md.chain_id
+        AND ro.round_id = md.round_id
+    GROUP BY 1,2,3,4,5,6,7,8,9
+),
+
+-- MACI contract developer GMV - split evenly between both addresses
+maci_contract_dev_gmv AS (
+    SELECT 
+        md.blockchain,
+        md.chain_id,
+        md.pool_name,
+        md.round_id,
+        md.tx_timestamp,
+        md.tx_hash,
+        cd.dev_address as address,
+        md.strategy_name,
+        'contract_dev' AS role,
+        SUM(md.gmv / cd.address_count) AS gmv
+    FROM maci_donor_gmv md
+    LEFT JOIN maci_contract_devs cd 
+        ON cd.strategy_name = md.strategy_name 
+        AND cd.blockchain = md.blockchain
+    GROUP BY 1,2,3,4,5,6,7,8,9
+),
+-- STREAM 4: DUNE --
 dune_gmv AS (
     SELECT
         blockchain,
-        cm.chain_id AS chain_id,
-        '' AS pool_name,
+        cm.chain_id as chain_id,
+        '' as pool_name,
         '' AS round_id,
-        tx_timestamp::timestamp WITH TIME ZONE AS tx_timestamp,
+        tx_timestamp::timestamp with time zone AS tx_timestamp,
         tx_hash,
         address,
         strategy_name,
         role,
         gmv
     FROM "experimental_views"."allov2_distribution_events_for_leaderboard" dune
-    LEFT JOIN chain_mapping cm 
-        ON cm.chain_name = dune.blockchain
+    LEFT JOIN chain_mapping cm ON cm.chain_name = dune.blockchain
     WHERE strategy_name != 'DonationVotingMerkleDistributionDirectTransferStrategy'
 )
 
@@ -379,8 +483,14 @@ SELECT *, 'distribution' as data_source FROM distribution_contract_dev_gmv
 UNION ALL
 SELECT *, 'distribution' as data_source FROM distribution_grantee_gmv
 UNION ALL
+SELECT *, 'maci_contribution' as data_source FROM maci_donor_gmv
+UNION ALL
+SELECT *, 'maci_contribution' as data_source FROM maci_round_operator_gmv
+UNION ALL
+SELECT *, 'maci_contribution' as data_source FROM maci_contract_dev_gmv
+UNION ALL
 SELECT *, 'dune' as data_source FROM dune_gmv)
-
+, save as (
 SELECT 
     ag.blockchain,
     ag.round_id,
@@ -401,4 +511,6 @@ LEFT JOIN
 WHERE 
     ag.address IS NOT NULL
     AND ag.chain_id != 11155111
-    AND ag.gmv >= 0.5;
+    AND ag.gmv >= 0.5
+    )
+    SELECT * FROM save 
