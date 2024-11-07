@@ -1,9 +1,6 @@
 name: Update Project Groupings
 
 on:
-  schedule:
-    # Runs at 5:00 UTC every day
-    - cron:  '0 5 * * *'
   workflow_dispatch:
 
 jobs:
