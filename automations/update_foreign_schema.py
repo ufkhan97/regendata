@@ -217,7 +217,7 @@ def import_foreign_schema(schema: str, tables: List[str], db_params: Dict, serve
     LIMIT TO ({table_list})
     FROM SERVER {server}
     INTO {target_schema}
-    OPTIONS (import_default 'true');
+    OPTIONS (import_default 'false');
     """
     logger.info(f"Importing foreign schema {schema} into local schema {target_schema}")
     execute_command(import_command, db_params)
