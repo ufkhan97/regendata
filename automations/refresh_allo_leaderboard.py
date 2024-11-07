@@ -50,7 +50,7 @@ def execute_command(command):
 
 
 def main():
-    query_file_path = 'automations/queries/allo_gmv_with_ens.sql' #needs to be automation/queries/allo_gmv_with_ens.sql for GitHub Actions
+    query_file_path = 'automations/queries/allo_gmv_with_ens.sql' #needs to be automations/queries/allo_gmv_with_ens.sql for GitHub Actions
     
     try:
         with open(query_file_path, 'r') as file:
