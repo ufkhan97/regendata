@@ -6,6 +6,8 @@ import logging
 import subprocess
 from typing import Dict, Optional, List
 from datetime import datetime, timedelta
+import requests
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -297,7 +299,7 @@ def update_schema(config: DatabaseConfig) -> Optional[int]:
         
         # For indexer, always use version 86
         if config.name == 'indexer':
-            new_version = 86
+            new_version = int(requests.get('https://grants-stack-indexer-v2.gitcoin.co/version').text)
         else:
             new_version = get_latest_schema_version(config.db_params)
             
