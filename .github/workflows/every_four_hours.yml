@@ -29,7 +29,7 @@ jobs:
       MACI_DB_USER: ${{ secrets.MACI_DB_USER }}
       MACI_DB_PASSWORD: ${{ secrets.MACI_DB_PASSWORD }}
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-
+      DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
 
     steps:
     - name: Checkout repository
@@ -42,6 +42,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+    - name: Refresh Dune Table
+      run: python automations/refresh_dune_table.py
+      timeout-minutes: 55
     - name: Update Foreign Schema
       run: python automations/update_foreign_schema.py
     - name: Update Local Indexer Tables
@@ -49,9 +52,6 @@ jobs:
       timeout-minutes: 55
     - name: Update All Donations & All Matching
       run: python automations/update_all_donations_and_matching_matviews.py
-      timeout-minutes: 55
-    - name: Refresh Dune Table
-      run: python automations/refresh_dune_table.py
       timeout-minutes: 55
     - name: Update Allo Leaderboard
       run: python automations/refresh_allo_leaderboard.py
