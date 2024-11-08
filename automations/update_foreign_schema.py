@@ -5,6 +5,7 @@ import pandas as pd
 import logging
 import subprocess
 from typing import Dict, Optional, List
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -134,25 +135,32 @@ TABLE_DEFINITIONS = {
     """
 }
 
-def load_schema_versions() -> Dict[str, Optional[int]]:
-    """Load current schema versions from JSON file."""
+def load_schema_versions() -> Dict[str, Dict]:
+    """Load current schema versions and last check time from JSON file."""
     try:
         with open('schema_versions.json', 'r') as f:
             return json.load(f)
     except FileNotFoundError:
         logger.info("No existing schema_versions.json found, creating new one")
-        return {"maci": None, "indexer": None}
+        return {
+            "maci": {"version": None, "last_checked": None},
+            "indexer": {"version": None, "last_checked": None}
+        }
 
-def save_schema_versions(versions: Dict[str, Optional[int]]) -> None:
-    """Save schema versions to JSON file and commit changes."""
+def save_schema_versions(versions: Dict[str, Dict]) -> None:
+    """Save schema versions and last check time to JSON file and commit changes."""
     # Convert any numpy integers to Python integers
     converted_versions = {
-        k: int(v) if v is not None else None 
+        k: {
+            "version": int(v["version"]) if v["version"] is not None else None,
+            "last_checked": v["last_checked"]
+        }
         for k, v in versions.items()
     }
     
     with open('schema_versions.json', 'w') as f:
         json.dump(converted_versions, f, indent=2)
+    
     
     try:
         # Configure git
@@ -173,6 +181,23 @@ def save_schema_versions(versions: Dict[str, Optional[int]]) -> None:
             
     except Exception as e:
         logger.error(f"Failed to commit schema version updates: {e}")
+
+def should_check_schema(config_name: str) -> bool:
+    """Determine if we should check for schema updates based on last check time."""
+    versions = load_schema_versions()
+    last_checked = versions[config_name]["last_checked"]
+    
+    if last_checked is None:
+        return True
+        
+    last_check_time = datetime.fromisoformat(last_checked)
+    time_since_check = datetime.now() - last_check_time
+    
+    if time_since_check < timedelta(hours=24):
+        logger.info(f"Skipping {config_name} schema check - last checked {last_checked}")
+        return False
+    
+    return True
 
 def run_query(query: str, db_params: Dict) -> Optional[pd.DataFrame]:
     """Run a query and return the results as a DataFrame."""
@@ -262,21 +287,31 @@ def get_latest_schema_version(db_params: Dict) -> Optional[int]:
 def update_schema(config: DatabaseConfig) -> Optional[int]:
     """Update schema for a specific database configuration. Returns the new version if updated."""
     try:
+        # Check if we should proceed based on last check time
+        if not should_check_schema(config.name):
+            return None
+
+        # Load existing versions
+        current_versions = load_schema_versions()
+        current_version = current_versions[config.name]["version"]
+        
         # For indexer, always use version 86
         if config.name == 'indexer':
             new_version = 86
         else:
             new_version = get_latest_schema_version(config.db_params)
+            
         if new_version is None:
             raise ValueError(f"Could not determine schema version for {config.name}")
         
-        # Load existing versions
-        current_versions = load_schema_versions()
-        current_version = current_versions.get(config.name)
+        # Update last checked time regardless of whether version changed
+        current_versions[config.name]["last_checked"] = datetime.now().isoformat()
         
-        # Skip if version hasn't changed
+        
+      # Skip if version hasn't changed
         if current_version == new_version:
             logger.info(f"Schema {config.name} already at version {new_version}, skipping update")
+            save_schema_versions(current_versions)
             return None
             
         logger.info(f"Updating {config.name} schema from version {current_version} to {new_version}")
@@ -302,8 +337,8 @@ def update_schema(config: DatabaseConfig) -> Optional[int]:
                 DB_PARAMS
             )
         
-        # Update version file
-        current_versions[config.name] = new_version
+        # Update version and last checked time
+        current_versions[config.name]["version"] = new_version
         save_schema_versions(current_versions)
         
         logger.info(f"Schema update completed successfully for {config.name}")

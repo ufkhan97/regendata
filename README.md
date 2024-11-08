@@ -15,4 +15,3 @@ It uses the [grants-etl](https://github.com/supermodularxyz/grants-etl/) framewo
 The following diagram illustrates the current state of the data flow within the RegenData system. It provides a visual representation of how data is processed and transferred between different components.
 
 ![Current State Diagram](current_state.png)
-

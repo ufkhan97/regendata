@@ -1,4 +1,4 @@
-name: Every Day (Update Foreign Schema, GSheets)
+name: Every Day (GSheets, Passport)
 
 on:
   schedule:
@@ -40,9 +40,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Update Foreign Schema
-      run: python automations/update_foreign_schema.py
     - name: Upload non-GS Allo data From Sheet
       run: python automations/upload_non_gs_allo_data.py
+    - name: Upload Passport Model Scores
+      run: python automations/upload_passport_model_scores.py
+      timeout-minutes: 55
 
 
