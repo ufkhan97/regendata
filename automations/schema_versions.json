@@ -1,4 +1,10 @@
 {
-  "maci": 93,
-  "indexer": 86
+  "maci": {
+    "version": 93,
+    "last_checked": "2024-11-08T14:23:34.824340"
+  },
+  "indexer": {
+    "version": 86,
+    "last_checked": null
+  }
 }
