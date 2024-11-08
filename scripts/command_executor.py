@@ -54,9 +54,19 @@ def main():
         return
 
     command = f"""
-    DROP MATERIALIZED VIEW IF EXISTS experimental_views.allo_gmv_leaderboard_events CASCADE;
-    CREATE MATERIALIZED VIEW experimental_views.allo_gmv_leaderboard_events AS
-    {query};
+    CREATE FOREIGN TABLE experimental_views.round_roles (
+        chain_id integer NOT NULL,
+        round_id text NOT NULL,
+        address text NOT NULL,
+        role text NOT NULL,
+        created_at_block numeric(78,0)
+    ) SERVER indexer
+    OPTIONS (schema_name 'chain_data_75', table_name 'round_roles');
+
+    DROP TABLE IF EXISTS static_indexer_chain_data_75.round_roles CASCADE;
+    CREATE TABLE static_indexer_chain_data_75.round_roles AS
+    SELECT * FROM experimental_views.round_roles;
+    DROP FOREIGN TABLE experimental_views.round_roles;
     """
 
     try:

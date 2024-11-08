@@ -42,11 +42,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Refresh Dune Table
-      run: python automations/refresh_dune_table.py
-      timeout-minutes: 55
     - name: Update Foreign Schema
       run: python automations/update_foreign_schema.py
+      timeout-minutes: 55
     - name: Update Local Indexer Tables
       run: python automations/update_local_indexer_tables.py
       timeout-minutes: 55
