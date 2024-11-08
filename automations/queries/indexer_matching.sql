@@ -11,9 +11,11 @@ SELECT
     md.value->>'matchPoolPercentage' AS match_pool_percentage,
     md.value->>'projectPayoutAddress' AS project_payout_address,
     md.value->>'originalMatchAmountInToken' AS original_match_amount_in_token,
-    (CAST(md.value->>'matchPoolPercentage' AS NUMERIC) * r.match_amount_in_usd) AS match_amount_in_usd
-FROM 
-    rounds r
+    CASE 
+        WHEN r.id = '0xa1d52f9b5339792651861329a046dd912761e9a9' THEN (CAST(md.value->>'matchPoolPercentage' AS NUMERIC) * r.match_amount_in_usd)/1000000000000
+        ELSE (CAST(md.value->>'matchPoolPercentage' AS NUMERIC) * r.match_amount_in_usd)
+    END AS match_amount_in_usd
+FROM rounds r
 CROSS JOIN LATERAL
     jsonb_array_elements(r.matching_distribution->'matchingDistribution') AS md(value)
 WHERE 

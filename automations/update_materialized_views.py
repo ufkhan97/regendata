@@ -41,26 +41,43 @@ BASE_MATVIEWS = {
         'order_by': 'id DESC, chain_id DESC',
         'amount_column': 'total_amount_donated_in_usd + CASE WHEN matching_distribution IS NOT NULL THEN match_amount_in_usd ELSE 0 END'
     },
-    'donations': {
-        'index_columns': ['id'],
-        'order_by': 'id DESC',
-        'amount_column': 'amount_in_usd'
-    },
+     'donations': {
+         'index_columns': ['id'],
+         'order_by': 'id DESC',
+         'amount_column': 'amount_in_usd'
+     },
     'applications_payouts': {
         'index_columns': ['id'],
         'order_by': 'id DESC',
         'amount_column': 'amount_in_usd'
+    },
+    'round_roles': {
+        'index_columns': ['chain_id', 'round_id', 'address', 'role'],
+        'order_by': 'chain_id DESC, round_id DESC, address DESC, role DESC',
+        'amount_column': None
     }
 }
 
 DEPENDENT_MATVIEWS = {
+    'indexer_matching': {
+        'query_file': 'queries/indexer_matching.sql',
+        'amount_column': 'match_amount_in_usd',
+        'schema': 'public'  
+    },
     'all_donations': {
         'query_file': 'queries/all_donations.sql',
-        'amount_column': 'amount_in_usd'
+        'amount_column': 'amount_in_usd',
+        'schema': 'public'
     },
     'all_matching': {
         'query_file': 'queries/all_matching.sql',
-        'amount_column': 'match_amount_in_usd'
+        'amount_column': 'match_amount_in_usd',
+        'schema': 'public'
+    },
+    'allo_gmv_leaderboard_events': {
+        'query_file': 'queries/allo_gmv_with_ens.sql',
+        'amount_column': 'gmv',
+        'schema': 'experimental_views'
     }
 }
 
@@ -93,15 +110,14 @@ def execute_command(connection, command: str, params: tuple = None) -> None:
         connection.rollback()
         raise
 
-def get_matview_total(connection, matview: str, config: dict) -> Optional[Decimal]:
-    """Get the total amount from a materialized view if it has an amount column."""
+def get_matview_total(connection, matview: str, config: dict, schema: str = 'public') -> Optional[Decimal]:
     amount_column = config.get('amount_column')
     if not amount_column:
-        return None
+        return None 
 
     query = f"""
     SELECT SUM({amount_column})
-    FROM public.{matview}
+    FROM {schema}.{matview}
     WHERE {amount_column} IS NOT NULL
     """
     
@@ -111,7 +127,7 @@ def get_matview_total(connection, matview: str, config: dict) -> Optional[Decima
             result = cursor.fetchone()
             return result[0] if result and result[0] else Decimal('0')
     except psycopg2.Error as e:
-        logger.error(f"Error fetching matview total for {matview}: {e}")
+        logger.error(f"Error fetching matview total for {schema}.{matview}: {e}")
         return None
 
 def create_base_matview(connection, matview: str, config: dict) -> None:
@@ -150,19 +166,20 @@ def create_base_matview(connection, matview: str, config: dict) -> None:
 def create_dependent_matview(connection, matview: str, config: dict) -> None:
     """Create a new dependent materialized view."""
     query_file = config['query_file']
+    schema = config.get('schema', 'public')  # default to public if not specified
     
     with open(query_file, 'r') as file:
         query = file.read()
         
-    # Modify query to point to _new base views
-    for base_view in BASE_MATVIEWS.keys():
-        query = query.replace(f"FROM {base_view}", f"FROM {base_view}_new")
-        query = query.replace(f"JOIN {base_view}", f"JOIN {base_view}_new")
+    # Replace references to both base and dependent views with their _new versions
+    for view in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
+        query = query.replace(f"FROM {view}", f"FROM {view}_new")
+        query = query.replace(f"JOIN {view}", f"JOIN {view}_new")
     
     create_command = f"""
-    DROP MATERIALIZED VIEW IF EXISTS public.{matview}_new CASCADE;
+    DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_new CASCADE;
     
-    CREATE MATERIALIZED VIEW public.{matview}_new AS
+    CREATE MATERIALIZED VIEW {schema}.{matview}_new AS
     {query}
     """
     
@@ -227,45 +244,55 @@ def refresh_materialized_views(connection) -> None:
         swap_commands = ["BEGIN;"]
         
         # Add swap commands for all views
-        for matview in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
-            swap_commands.append(
-                f"DROP MATERIALIZED VIEW IF EXISTS public.{matview}_old CASCADE;"
-            )
-            swap_commands.append(
-                f"ALTER MATERIALIZED VIEW IF EXISTS public.{matview} RENAME TO {matview}_old;"
-            )
-            swap_commands.append(
-                f"ALTER MATERIALIZED VIEW public.{matview}_new RENAME TO {matview};"
-            )
+        for matview, config in BASE_MATVIEWS.items():
+            schema = 'public'  # base views are always in public
+            swap_commands.extend([
+                f"DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_old CASCADE;",
+                f"ALTER MATERIALIZED VIEW IF EXISTS {schema}.{matview} RENAME TO {matview}_old;",
+                f"ALTER MATERIALIZED VIEW {schema}.{matview}_new RENAME TO {matview};"
+            ])
+
+        for matview, config in DEPENDENT_MATVIEWS.items():
+            schema = config.get('schema', 'public')
+            swap_commands.extend([
+                f"DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_old CASCADE;",
+                f"ALTER MATERIALIZED VIEW IF EXISTS {schema}.{matview} RENAME TO {matview}_old;",
+                f"ALTER MATERIALIZED VIEW {schema}.{matview}_new RENAME TO {matview};"
+            ])
         
         swap_commands.append("COMMIT;")
         execute_command(connection, "\n".join(swap_commands))
 
-        # Step 5: Validate refreshed views
+        # Step 5: Validate
+        # Need to modify validation to handle schema...
         logger.info("Validating refreshed views...")
-        # Validate base views
         for matview, config in BASE_MATVIEWS.items():
             validate_refresh(connection, matview, config, old_totals[matview])
             
-        # Validate dependent views (only comparing new totals)
         for matview, config in DEPENDENT_MATVIEWS.items():
-            new_total = get_matview_total(connection, matview, config)
-            logger.info(f"New dependent view {matview} total: {new_total}")
+            schema = config.get('schema', 'public')
+            new_total = get_matview_total(connection, matview, config, schema)
+            logger.info(f"New dependent view {schema}.{matview} total: {new_total}")
 
-        # Step 6: Clean up old views
+        # Step 6: Cleanup
         logger.info("Cleaning up old views...")
         cleanup_commands = []
-        for matview in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
+        for matview, config in BASE_MATVIEWS.items():
             cleanup_commands.append(
                 f"DROP MATERIALIZED VIEW IF EXISTS public.{matview}_old CASCADE;"
             )
+        for matview, config in DEPENDENT_MATVIEWS.items():
+            schema = config.get('schema', 'public')
+            cleanup_commands.append(
+                f"DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_old CASCADE;"
+            )
         execute_command(connection, "\n".join(cleanup_commands))
-
         logger.info("Materialized view refresh completed successfully.")
 
     except Exception as e:
         logger.error(f"Failed to refresh materialized views: {e}", exc_info=True)
         raise
+
 
 def main():
     """Main execution function."""

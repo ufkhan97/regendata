@@ -21,13 +21,11 @@ grants_stack_grants AS (
         a.id AS application_id,
         a.round_id AS round_id,
         a.chain_id AS chain_id
-    FROM 
-        applications AS a
+    FROM applications AS a
     LEFT JOIN 
         gg_rounds gg ON LOWER(gg.round_id) = LOWER(a.round_id)
         AND gg.chain_id = a.chain_id
-    LEFT JOIN 
-        rounds AS r ON r.id = LOWER(a.round_id) 
+    LEFT JOIN rounds AS r ON r.id = LOWER(a.round_id) 
         AND r.chain_id = a.chain_id
     -- WHERE a.status = 'APPROVED'
 ), 
@@ -46,8 +44,7 @@ grants_stack_donations AS (
         d.timestamp,
         gsg.application_id,
         gsg.round_id
-    FROM 
-        donations AS d
+    FROM donations AS d
     JOIN 
         grants_stack_grants gsg ON gsg.application_id = d.application_id
         AND gsg.round_id = d.round_id
