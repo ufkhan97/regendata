@@ -210,7 +210,7 @@ distribution_base AS (
             r.id AS round_id,
             r.chain_id,
             (r.round_metadata #>> '{name}')::TEXT AS round_name,
-            TO_TIMESTAMP(r.matching_distribution->>'blockTimestamp', 'YYYY-MM-DD"T"HH24:MI:SS.MSZ') AS timestamp,
+            COALESCE((TO_TIMESTAMP(r.matching_distribution->>'blockTimestamp', 'YYYY-MM-DD"T"HH24:MI:SS.MSZ')),donations_end_time) AS timestamp,
             md.value->>'projectName' AS project_name,
             md.value->>'projectPayoutAddress' AS recipient_address,
             a.distribution_transaction as transaction_hash,
@@ -348,6 +348,7 @@ distribution_contract_dev_gmv AS (
     GROUP BY 1,2,3,4,5,6,7,8,9
 ),
 -- STREAM 3: MACI CONTRIBUTIONS --
+-- Base MACI donations data
 
 maci_round_operators AS (
     SELECT 
@@ -364,7 +365,7 @@ maci_donations AS (
     SELECT
         c.round_id,
         c.chain_id,
-        LOWER(contributor_address) as contributor_address,
+        contributor_address,
         transaction_hash,
         (r.round_metadata #>> '{name}')::TEXT AS pool_name,
         'MACIQF' as strategy_name,
