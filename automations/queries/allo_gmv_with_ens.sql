@@ -361,7 +361,7 @@ maci_round_operators AS (
          maci.round_roles r
     GROUP BY r.chain_id, r.round_id, r.address
 ),
-maci_donations AS (
+maci_d AS (
     SELECT
         c.round_id,
         c.chain_id,
@@ -390,7 +390,7 @@ maci_contract_devs AS (
                 '0x8c180840fcbb90ce8464b4ecd12ab0f840c6647c',
                 '0xc72492618dff005ef57688281b5c78fbc5912287'
             ]) as dev_address
-        FROM maci_donations md
+        FROM maci_d md
         LEFT JOIN chain_mapping cm ON cm.chain_id = md.chain_id
     ) base
 ),
@@ -408,7 +408,7 @@ maci_donor_gmv AS (
         md.strategy_name,
         'donor' as role,
         md.gmv
-    FROM maci_donations md
+    FROM maci_d md
     LEFT JOIN chain_mapping cm ON cm.chain_id = md.chain_id
 ),
 
@@ -425,7 +425,7 @@ maci_round_operator_gmv AS (
         md.strategy_name,
         'round_operator' AS role,
         SUM(md.gmv / ro.count_addresses) AS gmv
-    FROM maci_donations md
+    FROM maci_d md
     LEFT JOIN chain_mapping cm ON cm.chain_id = md.chain_id
     LEFT JOIN maci_round_operators ro 
         ON ro.chain_id = md.chain_id
