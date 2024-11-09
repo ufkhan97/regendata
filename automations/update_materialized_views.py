@@ -246,8 +246,8 @@ def validate_refresh(connection, matview: str, config: dict, old_total: Optional
         else:
             logger.info(f"Total amount for {matview} remains unchanged at {new_total}")
 
-def validate_view_exists(connection, schema: str, matview: str) -> bool:
-    """Validate that a materialized view exists"""
+def check_view_exists(connection, schema: str, matview: str) -> bool:
+    """Check if a materialized view exists and log its status and data."""
     check_query = """
     SELECT EXISTS (
         SELECT FROM pg_matviews 
@@ -259,11 +259,19 @@ def validate_view_exists(connection, schema: str, matview: str) -> bool:
         with connection.cursor() as cursor:
             cursor.execute(check_query, (schema, matview))
             exists = cursor.fetchone()[0]
-            if not exists:
-                logger.error(f"Materialized view {schema}.{matview} does not exist")
+            logger.info(f"=== HEALTH CHECK: {schema}.{matview} ===")
+            logger.info(f"View status: {'EXISTS' if exists else 'DOES NOT EXIST'}")
+            if exists:
+                try:
+                    # If it exists, check its data
+                    cursor.execute(f"SELECT COUNT(*) FROM {schema}.{matview}")
+                    count = cursor.fetchone()[0]
+                    logger.info(f"Row count: {count}")
+                except psycopg2.Error as e:
+                    logger.error(f"Error checking row count: {e}")
             return exists
     except psycopg2.Error as e:
-        logger.error(f"Error checking materialized view existence: {e}")
+        logger.error(f"Error checking view existence: {e}")
         return False
 
 
@@ -323,8 +331,10 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
 
         execute_command(connection, "\n".join(swap_commands))
 
+        logger.info("=== POST-SWAP HEALTH CHECK ===")
+        check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
+
         # Step 5: Validate
-        # Need to modify validation to handle schema...
         logger.info("Validating refreshed views...")
         for matview, config in BASE_MATVIEWS.items():
             validate_refresh(connection, matview, config, old_totals[matview])
@@ -334,25 +344,12 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
             new_total = get_matview_total(connection, matview, config, schema)
             logger.info(f"New dependent view {schema}.{matview} total: {new_total}")
 
-                # After cleanup
-        logger.info("Checking view dependencies after cleanup...")
-        dependency_check = """
-            SELECT DISTINCT 
-                v.schemaname AS view_schema,
-                v.matviewname AS view_name,
-                d.refobjid::regclass AS referenced_object
-            FROM pg_matviews v
-            LEFT JOIN pg_class c ON c.relname = v.matviewname 
-                AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = v.schemaname)
-            LEFT JOIN pg_depend d ON c.oid = d.objid
-            WHERE v.schemaname IN ('public', 'experimental_views')
-            AND v.matviewname = 'allo_gmv_leaderboard_events';
-        """
-        with connection.cursor() as cursor:
-            cursor.execute(dependency_check)
-            deps = cursor.fetchall()
-            for dep in deps:
-                logger.info(f"View dependency found: {dep}")
+        logger.info("=== POST-VALIDATION HEALTH CHECK ===")
+        check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
+
+        logger.info("=== PRE-CLEANUP HEALTH CHECK ===")
+        check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
+
         # Step 6: Cleanup
         logger.info("Cleaning up old views...")
         cleanup_commands = []
@@ -374,30 +371,15 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
 
         execute_command(connection, "\n".join(cleanup_commands))
 
-        # After cleanup
-        logger.info("Checking view dependencies after cleanup...")
-        dependency_check = """
-            SELECT DISTINCT 
-                v.schemaname AS view_schema,
-                v.matviewname AS view_name,
-                d.refobjid::regclass AS referenced_object
-            FROM pg_matviews v
-            LEFT JOIN pg_class c ON c.relname = v.matviewname 
-                AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = v.schemaname)
-            LEFT JOIN pg_depend d ON c.oid = d.objid
-            WHERE v.schemaname IN ('public', 'experimental_views')
-            AND v.matviewname = 'allo_gmv_leaderboard_events';
-        """
-        with connection.cursor() as cursor:
-            cursor.execute(dependency_check)
-            deps = cursor.fetchall()
-            for dep in deps:
-                logger.info(f"View dependency found: {dep}")
+        logger.info("=== POST-CLEANUP HEALTH CHECK ===")
+        check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
+
+        logger.info("=== FINAL HEALTH CHECK ===")
+        check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
 
     except Exception as e:
         logger.error(f"Failed to refresh materialized views: {e}", exc_info=True)
         raise
-
 
 def main():
     """Main execution function."""
