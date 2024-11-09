@@ -30,6 +30,7 @@ jobs:
       MACI_DB_PASSWORD: ${{ secrets.MACI_DB_PASSWORD }}
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
       DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
+      DB_FDW_USERS: ${{ secrets.DB_FDW_USERS }}
 
     steps:
     - name: Checkout repository
