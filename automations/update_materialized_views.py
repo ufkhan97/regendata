@@ -176,22 +176,12 @@ def create_dependent_matview(connection, matview: str, config: dict) -> None:
         # Check and replace "FROM view" patterns
         from_pattern = f"FROM {view} "
         if from_pattern in query:
-            position = query.find(from_pattern)
-            print(f"Original query segment: '{query[position-50:position+50]}'")
-            print(f"Replacing '{from_pattern}' with 'FROM {view}_new '")
             query = query.replace(from_pattern, f"FROM {view}_new ")
-            position = query.find(f"FROM {view}_new")
-            print(f"Updated query segment: '{query[position-50:position+50]}'")
         
         # Check and replace "JOIN view" patterns
         join_pattern = f"JOIN {view} "
         if join_pattern in query:
-            position = query.find(join_pattern)
-            print(f"Original query segment: '{query[position-50:position+50]}'")
-            print(f"Replacing '{join_pattern}' with 'JOIN {view}_new '")
             query = query.replace(join_pattern, f"JOIN {view}_new ")
-            position = query.find(f"JOIN {view}_new")
-            print(f"Updated query segment: '{query[position-50:position+50]}'")
     
     create_command = f"""
     DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_new CASCADE;
@@ -199,7 +189,6 @@ def create_dependent_matview(connection, matview: str, config: dict) -> None:
     CREATE MATERIALIZED VIEW {schema}.{matview}_new AS
     {query}
     """
-    print(create_command)
     execute_command(connection, create_command)
 
 def create_indexes(connection, matview: str, config: dict) -> None:
@@ -302,6 +291,7 @@ def refresh_materialized_views(connection) -> None:
 
         for cmd in swap_commands:
             logger.info(f"Swap command: {cmd}")
+
         execute_command(connection, "\n".join(swap_commands))
 
         # Step 5: Validate
