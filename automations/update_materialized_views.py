@@ -187,64 +187,61 @@ def create_base_matview(connection, matview: str, config: dict, test_mode: bool 
     
     execute_command(connection, create_command)
 
-
-
 def create_dependent_matview(connection, matview: str, config: dict) -> None:
-   """Create a new dependent materialized view."""
-   query_file = config['query_file']
-   schema = config.get('schema', 'public')
-   
-   with open(query_file, 'r') as file:
-       query = file.read()
+    query_file = config['query_file']
+    schema = config.get('schema', 'public')
+    
+    with open(query_file, 'r') as file:
+        query = file.read()
 
-   if matview == 'allo_gmv_leaderboard_events':
-       # Find the first CTE
-       with_start = query.find('WITH')
-       first_cte_start = query.find('(', with_start)
-       
-       # Insert our table mappings right after the WITH
-       base_tables_cte = """
-           donations AS (SELECT * FROM public.donations_new),
-           rounds AS (SELECT * FROM public.rounds_new),
-           applications AS (SELECT * FROM public.applications_new),
-           applications_payouts AS (SELECT * FROM public.applications_payouts_new),
-           chain_mapping AS
-       """
-       
-       # Stitch it together
-       new_query = (
-           query[:with_start + 4] +  # "WITH"
-           "\n" + base_tables_cte + 
-           query[first_cte_start-12:]  # backing up to catch "chain_mapping AS"
-       )
-       
-       logger.info(f"Original query start:\n{query[:500]}...")
-       logger.info(f"Modified query start:\n{new_query[:500]}...")
-       
-       query = new_query
-   else:
-       # For other views, use the existing string replacement logic
-       for view in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
-           from_pattern = f"FROM {view} "
-           if from_pattern in query:
-               query = query.replace(from_pattern, f"FROM {view}_new ")
-           join_pattern = f"JOIN {view} "
-           if join_pattern in query:
-               query = query.replace(join_pattern, f"JOIN {view}_new ")
+    if matview == 'allo_gmv_leaderboard_events':
+        # Find the first CTE
+        with_start = query.find('WITH')
+        first_select = query.find('SELECT', with_start)
+        
+        # Insert our table mappings right after the WITH
+        base_tables_cte = """
+            donations AS (SELECT * FROM public.donations_new),
+            rounds AS (SELECT * FROM public.rounds_new),
+            applications AS (SELECT * FROM public.applications_new),
+            applications_payouts AS (SELECT * FROM public.applications_payouts_new),
+            chain_mapping AS (
+        """
+        
+        # Stitch it together
+        new_query = (
+            query[:with_start + 4] +  # "WITH"
+            "\n" + base_tables_cte + 
+            query[first_select:]  # start from the SELECT of first CTE
+        )
+        
+        logger.info(f"Original query start:\n{query[:500]}...")
+        logger.info(f"Modified query start:\n{new_query[:500]}...")
+        
+        query = new_query
+    else:
+        # For other views, use the existing string replacement logic
+        for view in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
+            from_pattern = f"FROM {view} "
+            if from_pattern in query:
+                query = query.replace(from_pattern, f"FROM {view}_new ")
+            join_pattern = f"JOIN {view} "
+            if join_pattern in query:
+                query = query.replace(join_pattern, f"JOIN {view}_new ")
 
-   create_command = f"""
-   DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_new CASCADE;
-   
-   CREATE MATERIALIZED VIEW {schema}.{matview}_new AS
-   {query}
-   """
-   
-   logger.info(f"Creating {matview}_new with schema {schema}")
-   if matview == 'allo_gmv_leaderboard_events':
-       # Extra logging for our problematic view
-       logger.info(f"Final create command start:\n{create_command[:1000]}...")
-       
-   execute_command(connection, create_command)
+    create_command = f"""
+    DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_new CASCADE;
+    
+    CREATE MATERIALIZED VIEW {schema}.{matview}_new AS
+    {query}
+    """
+    
+    logger.info(f"Creating {matview}_new with schema {schema}")
+    if matview == 'allo_gmv_leaderboard_events':
+        # Extra logging for our problematic view
+        logger.info(f"Final create command start:\n{create_command[:1000]}...")
+    
+    execute_command(connection, create_command)
 
 def create_indexes(connection, matview: str, config: dict) -> None:
     """Create indexes for a materialized view."""
