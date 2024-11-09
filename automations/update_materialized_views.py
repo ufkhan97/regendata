@@ -305,20 +305,63 @@ def refresh_materialized_views(connection) -> None:
             new_total = get_matview_total(connection, matview, config, schema)
             logger.info(f"New dependent view {schema}.{matview} total: {new_total}")
 
+                # After cleanup
+        logger.info("Checking view dependencies after cleanup...")
+        dependency_check = """
+        SELECT DISTINCT 
+            v.schemaname AS view_schema,
+            v.matviewname AS view_name,
+            r.ev_class::regclass AS referenced_object
+        FROM pg_matviews v
+        LEFT JOIN pg_depend d ON v.matviewoid = d.refobjid
+        LEFT JOIN pg_rewrite r ON r.oid = d.objid
+        WHERE v.schemaname IN ('public', 'experimental_views')
+        AND v.matviewname = 'allo_gmv_leaderboard_events';
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(dependency_check)
+            deps = cursor.fetchall()
+            for dep in deps:
+                logger.info(f"View dependency found: {dep}")
         # Step 6: Cleanup
         logger.info("Cleaning up old views...")
         cleanup_commands = []
         for matview, config in BASE_MATVIEWS.items():
-            cleanup_commands.append(
-                f"DROP MATERIALIZED VIEW IF EXISTS public.{matview}_old CASCADE;"
-            )
+            cmd = f"DROP MATERIALIZED VIEW IF EXISTS public.{matview}_old CASCADE;"
+            cleanup_commands.append(cmd)
+            logger.info(f"Adding cleanup command for base view: {cmd}")
+
         for matview, config in DEPENDENT_MATVIEWS.items():
             schema = config.get('schema', 'public')
-            cleanup_commands.append(
-                f"DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_old CASCADE;"
-            )
+            cmd = f"DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_old CASCADE;"
+            cleanup_commands.append(cmd)
+            logger.info(f"Adding cleanup command for dependent view: {cmd}")
+
+        # Before executing them all
+        logger.info("About to execute cleanup commands:")
+        for cmd in cleanup_commands:
+            logger.info(f"Will execute: {cmd}")
+
         execute_command(connection, "\n".join(cleanup_commands))
-        logger.info("Materialized view refresh completed successfully.")
+
+        # After cleanup
+        logger.info("Checking view dependencies after cleanup...")
+        dependency_check = """
+        SELECT DISTINCT 
+            v.schemaname AS view_schema,
+            v.matviewname AS view_name,
+            r.ev_class::regclass AS referenced_object
+        FROM pg_matviews v
+        LEFT JOIN pg_depend d ON v.matviewoid = d.refobjid
+        LEFT JOIN pg_rewrite r ON r.oid = d.objid
+        WHERE v.schemaname IN ('public', 'experimental_views')
+        AND v.matviewname = 'allo_gmv_leaderboard_events';
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(dependency_check)
+            deps = cursor.fetchall()
+            for dep in deps:
+                logger.info(f"View dependency found: {dep}")
 
     except Exception as e:
         logger.error(f"Failed to refresh materialized views: {e}", exc_info=True)
