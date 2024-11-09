@@ -231,6 +231,27 @@ def validate_refresh(connection, matview: str, config: dict, old_total: Optional
         else:
             logger.info(f"Total amount for {matview} remains unchanged at {new_total}")
 
+def validate_view_exists(connection, schema: str, matview: str) -> bool:
+    """Validate that a materialized view exists"""
+    check_query = """
+    SELECT EXISTS (
+        SELECT FROM pg_matviews 
+        WHERE schemaname = %s 
+        AND matviewname = %s
+    );
+    """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(check_query, (schema, matview))
+            exists = cursor.fetchone()[0]
+            if not exists:
+                logger.error(f"Materialized view {schema}.{matview} does not exist")
+            return exists
+    except psycopg2.Error as e:
+        logger.error(f"Error checking materialized view existence: {e}")
+        return False
+
+
 def refresh_materialized_views(connection) -> None:
     """Refresh all materialized views while maintaining dependencies."""
     try:
@@ -322,6 +343,10 @@ def main():
         
         end_time = time.time()
         logger.info(f"Total refresh time: {end_time - start_time:.2f} seconds")
+
+        for matview, config in DEPENDENT_MATVIEWS.items():
+            schema = config.get('schema', 'public')
+            validate_view_exists(connection, schema, matview)
         
     except Exception as e:
         logger.error(f"An error occurred during execution: {e}", exc_info=True)
