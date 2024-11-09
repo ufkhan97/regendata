@@ -45,14 +45,8 @@ jobs:
     - name: Update Foreign Schema
       run: python automations/update_foreign_schema.py
       timeout-minutes: 55
-    - name: Update Local Indexer Tables
-      run: python automations/update_local_indexer_tables.py
-      timeout-minutes: 55
-    - name: Update All Donations & All Matching
-      run: python automations/update_all_donations_and_matching_matviews.py
-      timeout-minutes: 55
-    - name: Update Allo Leaderboard
-      run: python automations/refresh_allo_leaderboard.py
+    - name: Update Materialized Views
+      run: python automations/update_materialized_views.py
       timeout-minutes: 55
     - name: Update Permissions
       run: python automations/create_foreign_data_users.py
