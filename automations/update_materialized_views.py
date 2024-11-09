@@ -41,11 +41,11 @@ BASE_MATVIEWS = {
         'order_by': 'id DESC, chain_id DESC',
         'amount_column': 'total_amount_donated_in_usd + CASE WHEN matching_distribution IS NOT NULL THEN match_amount_in_usd ELSE 0 END'
     },
-    # 'donations': {
-    #     'index_columns': ['id'],
-    #     'order_by': 'id DESC',
-    #     'amount_column': 'amount_in_usd'
-    # },
+     'donations': {
+         'index_columns': ['id'],
+         'order_by': 'id DESC',
+         'amount_column': 'amount_in_usd'
+     },
     'applications_payouts': {
         'index_columns': ['id'],
         'order_by': 'id DESC',
@@ -64,11 +64,11 @@ DEPENDENT_MATVIEWS = {
         'amount_column': 'match_amount_in_usd',
         'schema': 'public'  
     },
-    #'all_donations': {
-    #    'query_file': 'automations/queries/all_donations.sql',
-    #    'amount_column': 'amount_in_usd',
-    #    'schema': 'public'
-    #},
+    'all_donations': {
+        'query_file': 'automations/queries/all_donations.sql',
+        'amount_column': 'amount_in_usd',
+        'schema': 'public'
+    },
     'all_matching': {
         'query_file': 'automations/queries/all_matching.sql',
         'amount_column': 'match_amount_in_usd',
