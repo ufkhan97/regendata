@@ -140,7 +140,15 @@ def create_base_matview(connection, matview: str, config: dict, test_mode: bool 
     """
     index_columns = ', '.join(config['index_columns'])
     
-    # Base SQL structure
+    # Add LIMIT only in test mode and only for specific views
+    if test_mode and matview in ['donations', 'applications']:
+        limit1 = "LIMIT 1000"
+        limit2 = "LIMIT 1000"
+    else:
+        limit1 = ""
+        limit2 = ""
+
+    # Base SQL structure with subqueries wrapped in parentheses
     base_sql = """
     DROP MATERIALIZED VIEW IF EXISTS public.{matview}_new CASCADE;
     CREATE MATERIALIZED VIEW public.{matview}_new AS
@@ -156,27 +164,19 @@ def create_base_matview(connection, matview: str, config: dict, test_mode: bool 
                     END
             ) as row_num
         FROM (
-            SELECT *, 'indexer' as source 
+            (SELECT *, 'indexer' as source 
             FROM indexer.{matview} 
             WHERE chain_id != 11155111
-            {limit1}
+            {limit1})
             UNION ALL
-            SELECT *, 'static' as source 
+            (SELECT *, 'static' as source 
             FROM static_indexer_chain_data_75.{matview} 
             WHERE chain_id != 11155111
-            {limit2}
+            {limit2})
         ) combined_data
     )
     SELECT * FROM ranked_data WHERE row_num = 1;
     """
-    
-    # Add LIMIT only in test mode and only for specific views
-    if test_mode and matview in ['donations', 'applications']:
-        limit1 = "LIMIT 1000"
-        limit2 = "LIMIT 1000"
-    else:
-        limit1 = ""
-        limit2 = ""
     
     create_command = base_sql.format(
         matview=matview,
