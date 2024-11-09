@@ -5,6 +5,8 @@ import time
 from decimal import Decimal
 from typing import Dict, Optional, List
 
+TEST_MODE = True
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -130,11 +132,16 @@ def get_matview_total(connection, matview: str, config: dict, schema: str = 'pub
         logger.error(f"Error fetching matview total for {schema}.{matview}: {e}")
         return None
 
-def create_base_matview(connection, matview: str, config: dict) -> None:
-    """Create a new base materialized view."""
+def create_base_matview(connection, matview: str, config: dict, test_mode: bool = False) -> None:
+    """Create a new base materialized view.
+    
+    Args:
+        test_mode (bool): If True, limits data for faster testing
+    """
     index_columns = ', '.join(config['index_columns'])
     
-    create_command = f"""
+    # Base SQL structure
+    base_sql = """
     DROP MATERIALIZED VIEW IF EXISTS public.{matview}_new CASCADE;
     CREATE MATERIALIZED VIEW public.{matview}_new AS
     WITH ranked_data AS (
@@ -152,16 +159,35 @@ def create_base_matview(connection, matview: str, config: dict) -> None:
             SELECT *, 'indexer' as source 
             FROM indexer.{matview} 
             WHERE chain_id != 11155111
+            {limit1}
             UNION ALL
             SELECT *, 'static' as source 
             FROM static_indexer_chain_data_75.{matview} 
             WHERE chain_id != 11155111
+            {limit2}
         ) combined_data
     )
     SELECT * FROM ranked_data WHERE row_num = 1;
     """
     
+    # Add LIMIT only in test mode and only for specific views
+    if test_mode and matview in ['donations', 'applications']:
+        limit1 = "LIMIT 1000"
+        limit2 = "LIMIT 1000"
+    else:
+        limit1 = ""
+        limit2 = ""
+    
+    create_command = base_sql.format(
+        matview=matview,
+        index_columns=index_columns,
+        limit1=limit1,
+        limit2=limit2
+    )
+    
     execute_command(connection, create_command)
+
+
 
 def create_dependent_matview(connection, matview: str, config: dict) -> None:
     """Create a new dependent materialized view."""
@@ -241,8 +267,12 @@ def validate_view_exists(connection, schema: str, matview: str) -> bool:
         return False
 
 
-def refresh_materialized_views(connection) -> None:
-    """Refresh all materialized views while maintaining dependencies."""
+def refresh_materialized_views(connection, test_mode: bool = False) -> None:
+    """Refresh all materialized views while maintaining dependencies.
+    
+    Args:
+        test_mode (bool): If True, uses limited data for faster testing
+    """
     try:
         # Step 1: Store current totals for validation (base views only)
         logger.info("Recording current totals...")
@@ -250,12 +280,11 @@ def refresh_materialized_views(connection) -> None:
         for matview, config in BASE_MATVIEWS.items():
             old_totals[matview] = get_matview_total(connection, matview, config)
 
-
         # Step 2: Create all new base views
         logger.info("Creating new base materialized views...")
         for matview, config in BASE_MATVIEWS.items():
             logger.info(f"Creating {matview}_new...")
-            create_base_matview(connection, matview, config)
+            create_base_matview(connection, matview, config, test_mode)
             create_indexes(connection, f"{matview}_new", config)
 
         # Step 3: Create all new dependent views
@@ -308,15 +337,16 @@ def refresh_materialized_views(connection) -> None:
                 # After cleanup
         logger.info("Checking view dependencies after cleanup...")
         dependency_check = """
-        SELECT DISTINCT 
-            v.schemaname AS view_schema,
-            v.matviewname AS view_name,
-            r.ev_class::regclass AS referenced_object
-        FROM pg_matviews v
-        LEFT JOIN pg_depend d ON v.matviewoid = d.refobjid
-        LEFT JOIN pg_rewrite r ON r.oid = d.objid
-        WHERE v.schemaname IN ('public', 'experimental_views')
-        AND v.matviewname = 'allo_gmv_leaderboard_events';
+            SELECT DISTINCT 
+                v.schemaname AS view_schema,
+                v.matviewname AS view_name,
+                d.refobjid::regclass AS referenced_object
+            FROM pg_matviews v
+            LEFT JOIN pg_class c ON c.relname = v.matviewname 
+                AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = v.schemaname)
+            LEFT JOIN pg_depend d ON c.oid = d.objid
+            WHERE v.schemaname IN ('public', 'experimental_views')
+            AND v.matviewname = 'allo_gmv_leaderboard_events';
         """
         with connection.cursor() as cursor:
             cursor.execute(dependency_check)
@@ -347,15 +377,16 @@ def refresh_materialized_views(connection) -> None:
         # After cleanup
         logger.info("Checking view dependencies after cleanup...")
         dependency_check = """
-        SELECT DISTINCT 
-            v.schemaname AS view_schema,
-            v.matviewname AS view_name,
-            r.ev_class::regclass AS referenced_object
-        FROM pg_matviews v
-        LEFT JOIN pg_depend d ON v.matviewoid = d.refobjid
-        LEFT JOIN pg_rewrite r ON r.oid = d.objid
-        WHERE v.schemaname IN ('public', 'experimental_views')
-        AND v.matviewname = 'allo_gmv_leaderboard_events';
+            SELECT DISTINCT 
+                v.schemaname AS view_schema,
+                v.matviewname AS view_name,
+                d.refobjid::regclass AS referenced_object
+            FROM pg_matviews v
+            LEFT JOIN pg_class c ON c.relname = v.matviewname 
+                AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = v.schemaname)
+            LEFT JOIN pg_depend d ON c.oid = d.objid
+            WHERE v.schemaname IN ('public', 'experimental_views')
+            AND v.matviewname = 'allo_gmv_leaderboard_events';
         """
         with connection.cursor() as cursor:
             cursor.execute(dependency_check)
@@ -373,16 +404,14 @@ def main():
     connection = None
     start_time = time.time()
     
+    # Add argument parsing
+    
     try:
         connection = get_connection()
-        refresh_materialized_views(connection)
+        refresh_materialized_views(connection, test_mode=TEST_MODE)
         
         end_time = time.time()
         logger.info(f"Total refresh time: {end_time - start_time:.2f} seconds")
-
-        for matview, config in DEPENDENT_MATVIEWS.items():
-            schema = config.get('schema', 'public')
-            validate_view_exists(connection, schema, matview)
         
     except Exception as e:
         logger.error(f"An error occurred during execution: {e}", exc_info=True)
@@ -390,6 +419,9 @@ def main():
     finally:
         if connection:
             connection.close()
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
