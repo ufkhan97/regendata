@@ -173,8 +173,8 @@ def create_dependent_matview(connection, matview: str, config: dict) -> None:
         
     # Replace references to both base and dependent views with their _new versions
     for view in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
-        query = query.replace(f"FROM {view}", f"FROM {view}_new")
-        query = query.replace(f"JOIN {view}", f"JOIN {view}_new")
+        query = query.replace(f"FROM {view} ", f"FROM {view}_new ")
+        query = query.replace(f"JOIN {view} ", f"JOIN {view}_new ")
     
     create_command = f"""
     DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_new CASCADE;
