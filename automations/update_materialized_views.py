@@ -75,7 +75,7 @@ DEPENDENT_MATVIEWS = {
         'schema': 'public'
     },
     'allo_gmv_leaderboard_events': {
-        'query_file': 'queries/allo_gmv_with_ens.sql',
+        'query_file': 'automations/queries/allo_gmv_with_ens.sql',
         'amount_column': 'gmv',
         'schema': 'experimental_views'
     }
