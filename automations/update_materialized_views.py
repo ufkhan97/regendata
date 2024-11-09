@@ -192,29 +192,38 @@ def create_base_matview(connection, matview: str, config: dict, test_mode: bool 
 def create_dependent_matview(connection, matview: str, config: dict) -> None:
     """Create a new dependent materialized view."""
     query_file = config['query_file']
-    schema = config.get('schema', 'public')  # default to public if not specified
+    schema = config.get('schema', 'public')
     
     with open(query_file, 'r') as file:
         query = file.read()
-        
-    # Replace references to both base and dependent views with their _new versions
-    for view in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
-        # Check and replace "FROM view" patterns
-        from_pattern = f"FROM {view} "
-        if from_pattern in query:
-            query = query.replace(from_pattern, f"FROM {view}_new ")
-        
-        # Check and replace "JOIN view" patterns
-        join_pattern = f"JOIN {view} "
-        if join_pattern in query:
-            query = query.replace(join_pattern, f"JOIN {view}_new ")
-    
+
+    # If it's the allo_gmv_leaderboard_events view, prepend the WITH statement
+    if matview == 'allo_gmv_leaderboard_events':
+        base_tables_cte = """
+        WITH 
+            donations AS (SELECT * FROM public.donations_new),
+            rounds AS (SELECT * FROM public.rounds_new),
+            applications AS (SELECT * FROM public.applications_new),
+            applications_payouts AS (SELECT * FROM public.applications_payouts_new),
+        """
+        # Remove the last comma and add the original query
+        query = base_tables_cte.rstrip(',\n') + "\n" + query
+    else:
+        # For other views, use the existing string replacement logic
+        for view in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
+            from_pattern = f"FROM {view} "
+            if from_pattern in query:
+                query = query.replace(from_pattern, f"FROM {view}_new ")
+            join_pattern = f"JOIN {view} "
+            if join_pattern in query:
+                query = query.replace(join_pattern, f"JOIN {view}_new ")
+
     create_command = f"""
     DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_new CASCADE;
-    
     CREATE MATERIALIZED VIEW {schema}.{matview}_new AS
     {query}
     """
+    
     execute_command(connection, create_command)
 
 def create_indexes(connection, matview: str, config: dict) -> None:
