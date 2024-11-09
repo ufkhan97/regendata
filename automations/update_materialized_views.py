@@ -5,7 +5,7 @@ import time
 from decimal import Decimal
 from typing import Dict, Optional, List
 
-TEST_MODE = True
+TEST_MODE = False
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -352,8 +352,6 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
 
         swap_commands.append("COMMIT;")
 
-        for cmd in swap_commands:
-            logger.info(f"Swap command: {cmd}")
 
         execute_command(connection, "\n".join(swap_commands))
 
@@ -369,9 +367,6 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
             schema = config.get('schema', 'public')
             new_total = get_matview_total(connection, matview, config, schema)
             logger.info(f"New dependent view {schema}.{matview} total: {new_total}")
-
-        logger.info("=== POST-VALIDATION HEALTH CHECK ===")
-        check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
 
         logger.info("=== PRE-CLEANUP HEALTH CHECK ===")
         check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
@@ -400,8 +395,6 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
         logger.info("=== POST-CLEANUP HEALTH CHECK ===")
         check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
 
-        logger.info("=== FINAL HEALTH CHECK ===")
-        check_view_exists(connection, 'experimental_views', 'allo_gmv_leaderboard_events')
 
     except Exception as e:
         logger.error(f"Failed to refresh materialized views: {e}", exc_info=True)
