@@ -75,7 +75,7 @@ DEPENDENT_MATVIEWS = {
         'schema': 'public'
     },
     'allo_gmv_leaderboard_events': {
-        'query_file': 'automations/queries/allo_gmv_with_ens.sql',
+        'query_file': 'queries/allo_gmv_with_ens.sql',
         'amount_column': 'gmv',
         'schema': 'experimental_views'
     }
@@ -173,8 +173,25 @@ def create_dependent_matview(connection, matview: str, config: dict) -> None:
         
     # Replace references to both base and dependent views with their _new versions
     for view in list(BASE_MATVIEWS.keys()) + list(DEPENDENT_MATVIEWS.keys()):
-        query = query.replace(f"FROM {view} ", f"FROM {view}_new ")
-        query = query.replace(f"JOIN {view} ", f"JOIN {view}_new ")
+        # Check and replace "FROM view" patterns
+        from_pattern = f"FROM {view} "
+        if from_pattern in query:
+            position = query.find(from_pattern)
+            print(f"Original query segment: '{query[position-50:position+50]}'")
+            print(f"Replacing '{from_pattern}' with 'FROM {view}_new '")
+            query = query.replace(from_pattern, f"FROM {view}_new ")
+            position = query.find(f"FROM {view}_new")
+            print(f"Updated query segment: '{query[position-50:position+50]}'")
+        
+        # Check and replace "JOIN view" patterns
+        join_pattern = f"JOIN {view} "
+        if join_pattern in query:
+            position = query.find(join_pattern)
+            print(f"Original query segment: '{query[position-50:position+50]}'")
+            print(f"Replacing '{join_pattern}' with 'JOIN {view}_new '")
+            query = query.replace(join_pattern, f"JOIN {view}_new ")
+            position = query.find(f"JOIN {view}_new")
+            print(f"Updated query segment: '{query[position-50:position+50]}'")
     
     create_command = f"""
     DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_new CASCADE;
@@ -182,7 +199,7 @@ def create_dependent_matview(connection, matview: str, config: dict) -> None:
     CREATE MATERIALIZED VIEW {schema}.{matview}_new AS
     {query}
     """
-    
+    print(create_command)
     execute_command(connection, create_command)
 
 def create_indexes(connection, matview: str, config: dict) -> None:
