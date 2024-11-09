@@ -60,22 +60,22 @@ BASE_MATVIEWS = {
 
 DEPENDENT_MATVIEWS = {
     'indexer_matching': {
-        'query_file': 'queries/indexer_matching.sql',
+        'query_file': 'automations/queries/indexer_matching.sql',
         'amount_column': 'match_amount_in_usd',
         'schema': 'public'  
     },
     #'all_donations': {
-    #    'query_file': 'queries/all_donations.sql',
+    #    'query_file': 'automations/queries/all_donations.sql',
     #    'amount_column': 'amount_in_usd',
     #    'schema': 'public'
     #},
     'all_matching': {
-        'query_file': 'queries/all_matching.sql',
+        'query_file': 'automations/queries/all_matching.sql',
         'amount_column': 'match_amount_in_usd',
         'schema': 'public'
     },
     'allo_gmv_leaderboard_events': {
-        'query_file': 'queries/allo_gmv_with_ens.sql',
+        'query_file': 'automations/queries/allo_gmv_with_ens.sql',
         'amount_column': 'gmv',
         'schema': 'experimental_views'
     }
