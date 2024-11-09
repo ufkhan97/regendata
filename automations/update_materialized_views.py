@@ -280,7 +280,7 @@ def refresh_materialized_views(connection) -> None:
         # Step 4: Atomic swap of all views
         logger.info("Performing atomic swap of all views...")
         swap_commands = ["BEGIN;"]
-        
+
         # Add swap commands for all views
         for matview, config in BASE_MATVIEWS.items():
             schema = 'public'  # base views are always in public
@@ -297,8 +297,11 @@ def refresh_materialized_views(connection) -> None:
                 f"ALTER MATERIALIZED VIEW IF EXISTS {schema}.{matview} RENAME TO {matview}_old;",
                 f"ALTER MATERIALIZED VIEW {schema}.{matview}_new RENAME TO {matview};"
             ])
-        
+
         swap_commands.append("COMMIT;")
+
+        for cmd in swap_commands:
+            logger.info(f"Swap command: {cmd}")
         execute_command(connection, "\n".join(swap_commands))
 
         # Step 5: Validate
