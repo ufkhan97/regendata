@@ -1,4 +1,4 @@
-name: Every Day (GSheets, Dune, Passport)
+name: Every Day (GSheets, Passport)
 
 on:
   schedule:
@@ -26,7 +26,6 @@ jobs:
       MACI_DB_USER: ${{ secrets.MACI_DB_USER }}
       MACI_DB_PASSWORD: ${{ secrets.MACI_DB_PASSWORD }}
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-      DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
 
     steps:
     - name: Checkout repository
@@ -41,9 +40,6 @@ jobs:
         pip install -r requirements.txt
     - name: Upload non-GS Allo data From Sheet
       run: python automations/upload_non_gs_allo_data.py
-    - name: Refresh Dune Table
-      run: python automations/refresh_dune_table.py
-      timeout-minutes: 55
     - name: Upload Passport Model Scores
       run: python automations/upload_passport_model_scores.py
       timeout-minutes: 55
