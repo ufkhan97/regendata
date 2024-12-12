@@ -110,6 +110,9 @@ def execute_command(connection, command: str, params: tuple = None) -> None:
     """Execute a database command with proper error handling."""
     logger.info(f"Executing command: {command[:100]}...")
     try:
+        # First ensure we're in a clean transaction state
+        connection.rollback()
+        
         with connection.cursor() as cursor:
             if params:
                 cursor.execute(command, params)
@@ -119,7 +122,7 @@ def execute_command(connection, command: str, params: tuple = None) -> None:
         logger.info("Command executed successfully.")
     except psycopg2.Error as e:
         logger.error(f"Database error: {e}")
-        connection.rollback()
+        connection.rollback()  # Ensure we rollback on error
         raise
 
 def get_matview_total(connection, matview: str, config: dict, schema: str = 'public') -> Optional[Decimal]:
@@ -387,8 +390,12 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
         test_mode (bool): If True, uses limited data for faster testing
     """
     try:
-        # Step 0: Cleanup any leftover views
-        cleanup_leftover_views(connection)
+        # Step 0: Cleanup any leftover views (with error handling)
+        try:
+            cleanup_leftover_views(connection)
+        except Exception as e:
+            logger.warning(f"Cleanup of leftover views failed: {e}")
+            # Continue with the refresh process
 
         # Step 1: Store current totals for validation (base views only)
         logger.info("Recording current totals...")

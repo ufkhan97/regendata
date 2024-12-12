@@ -98,7 +98,8 @@ def upload_to_postgres(df, table_name):
 
 # Usage
 def main():
-    url = 'https://nyc3.digitaloceanspaces.com/regendata/passport/model_scores.parquet'
+    url = 'https://public.scorer.gitcoin.co/model_scores/model_scores.parquet'
+    # SOON url = 'https://nyc3.digitaloceanspaces.com/regendata/passport/model_scores.parquet'
     try:
         df = pd.read_parquet(url)
         logger.info("Successfully read parquet file from URL.")
