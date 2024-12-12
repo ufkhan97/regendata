@@ -110,6 +110,7 @@ data = pd.concat([cgrants_data, indexer_data], ignore_index=True)
 # Pre-cleaning
 eth_address_pattern = r'^0x[a-fA-F0-9]{40}$'
 data['payout_address'] = data['payout_address'].astype(str)
+data['payout_address'] = data['payout_address'].str.lower()
 data = data[data['payout_address'].str.match(eth_address_pattern)]
 data['title'] = data['title'].astype(str)
 data['title'] = data['title'].str.lower()

@@ -4,6 +4,10 @@ import logging
 import time
 from decimal import Decimal
 from typing import Dict, Optional, List
+from dune_client.client import DuneClient
+import pandas as pd 
+import hashlib
+
 
 TEST_MODE = False
 
@@ -57,6 +61,12 @@ BASE_MATVIEWS = {
         'index_columns': ['chain_id', 'round_id', 'address', 'role'],
         'order_by': 'chain_id DESC, round_id DESC, address DESC, role DESC',
         'amount_column': None
+    },
+    'allov2_distribution_events_for_leaderboard': {
+        'index_columns': ['tx_timestamp', 'event_signature'],
+        'order_by': 'tx_timestamp DESC, event_signature DESC',
+        'amount_column': None,
+        'refresh_type': 'dune'  # indicates this needs special handling
     }
 }
 
@@ -132,6 +142,74 @@ def get_matview_total(connection, matview: str, config: dict, schema: str = 'pub
         logger.error(f"Error fetching matview total for {schema}.{matview}: {e}")
         return None
 
+def cleanup_leftover_views(connection) -> None:
+    """Clean up any leftover _new views and tables from previous failed runs."""
+    logger.info("Cleaning up any leftover _new views and tables...")
+    
+    cleanup_commands = []
+    
+    # Clean up base views
+    for matview in BASE_MATVIEWS.keys():
+        cleanup_commands.append(f"DROP MATERIALIZED VIEW IF EXISTS public.{matview}_new CASCADE;")
+    
+    # Clean up dependent views
+    for matview, config in DEPENDENT_MATVIEWS.items():
+        schema = config.get('schema', 'public')
+        cleanup_commands.append(f"DROP MATERIALIZED VIEW IF EXISTS {schema}.{matview}_new CASCADE;")
+    
+    execute_command(connection, "\n".join(cleanup_commands))
+
+# Add new function for Dune refresh
+def refresh_dune_base_view(connection, dune_api_key: str) -> None:
+    """Refresh the Dune-based view using the API."""
+    try:
+        # Initialize Dune client and get query results
+        logger.info("Initializing Dune client")
+        dune = DuneClient(dune_api_key)
+        logger.info("Fetching latest results from query 4118421")
+        query_result = dune.get_latest_result(4118421)
+        logger.info("Successfully retrieved query results")
+        query_result_df = pd.DataFrame(query_result.result.rows)
+        # Sort dataframe and add row number column
+        query_result_df = query_result_df.sort_values(by=['tx_timestamp','role', 'address', 'gmv'])
+        query_result_df['row_number'] = range(1, len(query_result_df) + 1)
+        
+        # Create hash_id by concatenating and hashing relevant columns
+        query_result_df['event_signature'] = query_result_df.apply(
+            lambda row: hashlib.sha256(
+                f"{row['tx_timestamp']}{row['tx_hash']}{row['address']}{row['gmv']}{row['role']}{row['row_number']}".encode()
+            ).hexdigest(),
+            axis=1
+        )
+
+        # validation
+        if len(query_result_df) == 0:
+            raise ValueError("Empty result set from Dune")
+
+        # Convert dataframe to SQL values
+        values = []
+        for _, row in query_result_df.iterrows():
+            value_list = [
+                f"'{str(v)}'" if isinstance(v, (str, pd.Timestamp)) else str(v) if v is not None else 'NULL'
+                for v in row.values
+            ]
+            values.append(f"({', '.join(value_list)})")
+
+        create_command = f"""
+        CREATE MATERIALIZED VIEW public.allov2_distribution_events_for_leaderboard_new AS
+        SELECT * FROM (
+            VALUES {','.join(values)}
+        ) AS t({', '.join(f'"{col}"' for col in query_result_df.columns)});
+        """
+
+        execute_command(connection, create_command)
+        logger.info(f"Successfully created materialized view with {len(query_result_df)} rows")
+
+    except Exception as e:
+        logger.error(f"Failed to refresh Dune view: {e}")
+        raise
+
+
 def create_base_matview(connection, matview: str, config: dict, test_mode: bool = False) -> None:
     """Create a new base materialized view.
     
@@ -205,6 +283,7 @@ def create_dependent_matview(connection, matview: str, config: dict) -> None:
             rounds AS (SELECT * FROM public.rounds_new),
             applications AS (SELECT * FROM public.applications_new),
             applications_payouts AS (SELECT * FROM public.applications_payouts_new),
+            allov2_distribution_events_for_leaderboard AS (SELECT * FROM public.allov2_distribution_events_for_leaderboard_new),
             chain_mapping AS (
         """
         
@@ -308,6 +387,9 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
         test_mode (bool): If True, uses limited data for faster testing
     """
     try:
+        # Step 0: Cleanup any leftover views
+        cleanup_leftover_views(connection)
+
         # Step 1: Store current totals for validation (base views only)
         logger.info("Recording current totals...")
         old_totals = {}
@@ -318,7 +400,14 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
         logger.info("Creating new base materialized views...")
         for matview, config in BASE_MATVIEWS.items():
             logger.info(f"Creating {matview}_new...")
-            create_base_matview(connection, matview, config, test_mode)
+            if config.get('refresh_type') == 'dune':
+                # Get Dune API key from environment
+                dune_api_key = os.environ.get('DUNE_API_KEY')
+                if not dune_api_key:
+                    raise ValueError("DUNE_API_KEY environment variable is required")
+                refresh_dune_base_view(connection, dune_api_key)
+            else:
+                create_base_matview(connection, matview, config, test_mode)
             create_indexes(connection, f"{matview}_new", config)
 
         # Step 3: Create all new dependent views

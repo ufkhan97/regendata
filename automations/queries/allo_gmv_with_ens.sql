@@ -465,7 +465,7 @@ dune_gmv AS (
         strategy_name,
         role,
         gmv
-    FROM "experimental_views"."allov2_distribution_events_for_leaderboard" dune
+    FROM allov2_distribution_events_for_leaderboard dune
     LEFT JOIN chain_mapping cm ON cm.chain_name = dune.blockchain
     WHERE strategy_name != 'DonationVotingMerkleDistributionDirectTransferStrategy'
 )
