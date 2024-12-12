@@ -54,7 +54,7 @@ def main():
         return
 
     command = f"""
-    DROP VIEW IF EXISTS indexer_matching CASCADE;
+    DROP TABLE IF EXISTS allov2_distribution_events_for_leaderboard CASCADE;
     """
 
     try:
