@@ -45,17 +45,32 @@ def execute_command(command):
 
 
 def main():
-    query_file_path = '../automations/queries/allo_gmv_with_ens.sql'
-    try:
-        with open(query_file_path, 'r') as file:
-            query = file.read()
-    except FileNotFoundError:
-        logger.error(f"File {query_file_path} not found.")
-        return
+    #query_file_path = '../automations/queries/allo_gmv_with_ens.sql'
+    #try:
+    #    with open(query_file_path, 'r') as file:
+    #        query = file.read()
+    #except FileNotFoundError:
+    #    logger.error(f"File {query_file_path} not found.")
+    #    return
 
     command = f"""
-    DROP VIEW IF EXISTS indexer_matching CASCADE;
+    BEGIN;
+        -- Drop the materialized view first
+        DROP MATERIALIZED VIEW IF EXISTS public.applications_payouts CASCADE;
+        
+        -- Now drop the columns
+        ALTER TABLE static_indexer_chain_data_75.applications_payouts 
+        DROP COLUMN IF EXISTS source,
+        DROP COLUMN IF EXISTS row_num;
+        
+        -- Recreate the materialized view
+        CREATE MATERIALIZED VIEW public.applications_payouts AS
+        SELECT * FROM static_indexer_chain_data_75.applications_payouts;
+    COMMIT;
     """
+
+
+    print(command)
 
     try:
         execute_command(command)
