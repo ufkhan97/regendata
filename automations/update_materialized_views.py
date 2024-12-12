@@ -101,6 +101,7 @@ def get_connection():
             # Set keepalive parameters
             cursor.execute("SET tcp_keepalives_idle = 180;")  # 3 minutes
             cursor.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
+            cursor.execute("SET statement_timeout = '1800000';")  # 30 minutes
         return conn
     except psycopg2.Error as e:
         logger.error(f"Failed to connect to the database: {e}")
