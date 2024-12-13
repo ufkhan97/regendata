@@ -391,11 +391,11 @@ def refresh_materialized_views(connection, test_mode: bool = False) -> None:
         test_mode (bool): If True, uses limited data for faster testing
     """
     try:
-        # Step 0: Cleanup any leftover views (with error handling)
-        try:
-            cleanup_leftover_views(connection)
-        except Exception as e:
-            logger.warning(f"Cleanup of leftover views failed: {e}")
+        # # Step 0: Cleanup any leftover views (with error handling)
+        # try:
+        #     cleanup_leftover_views(connection)
+        # except Exception as e:
+        #     logger.warning(f"Cleanup of leftover views failed: {e}")
             # Continue with the refresh process
 
         # Step 1: Store current totals for validation (base views only)
