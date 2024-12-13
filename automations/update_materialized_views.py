@@ -99,8 +99,8 @@ def get_connection():
         conn = psycopg2.connect(**DB_PARAMS)
         with conn.cursor() as cursor:
             # Set keepalive parameters
-            cursor.execute("SET tcp_keepalives_idle = 180;")  # 3 minutes
-            cursor.execute("SET tcp_keepalives_interval = 60;")  # 60 seconds
+            cursor.execute("SET tcp_keepalives_idle = 60;")  # 1 minute
+            cursor.execute("SET tcp_keepalives_interval = 30;")  # 30 seconds
             cursor.execute("SET statement_timeout = '1800000';")  # 30 minutes
         return conn
     except psycopg2.Error as e:
