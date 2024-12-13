@@ -6,6 +6,16 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+try:
+    from dotenv import load_dotenv
+    if load_dotenv():
+        logger.info("Loaded .env file")
+    else:
+        logger.info("No .env file found or loaded")
+except ImportError:
+    logger.info("dotenv not installed, skipping .env file loading")
+
+
 # Database configuration
 DB_PARAMS = {
     'host': os.environ['DB_HOST'],
@@ -21,7 +31,7 @@ def long_running_query():
         conn = psycopg2.connect(**DB_PARAMS)
         
         with conn.cursor() as cursor:
-            logger.info('Starting long-running query (SELECT pg_sleep(600);)')
+            logger.info('Starting long-running query (SELECT pg_sleep(350);)')
             cursor.execute('SELECT pg_sleep(350);')
             logger.info('Long-running query completed successfully.')
     except psycopg2.Error as e:

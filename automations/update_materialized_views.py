@@ -200,6 +200,7 @@ def refresh_dune_base_view(connection, dune_api_key: str) -> None:
             values.append(f"({', '.join(value_list)})")
 
         create_command = f"""
+        DROP MATERIALIZED VIEW IF EXISTS public.allov2_distribution_events_for_leaderboard_new CASCADE;
         CREATE MATERIALIZED VIEW public.allov2_distribution_events_for_leaderboard_new AS
         SELECT * FROM (
             VALUES {','.join(values)}
