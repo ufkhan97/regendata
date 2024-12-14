@@ -297,9 +297,9 @@ def update_schema(config: DatabaseConfig) -> Optional[int]:
         current_versions = load_schema_versions()
         current_version = current_versions[config.name]["version"]
         
-        # For indexer, always use version 86
+        # For indexer
         if config.name == 'indexer':
-            new_version = int(requests.get('https://grants-stack-indexer-v2.gitcoin.co/version').text)
+            new_version = 86#int(requests.get('https://grants-stack-indexer-v2.gitcoin.co/version').text)
         else:
             new_version = get_latest_schema_version(config.db_params)
             
