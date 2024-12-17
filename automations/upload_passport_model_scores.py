@@ -79,14 +79,19 @@ def upload_to_postgres(df, table_name):
     try:
         with engine.begin() as conn:
             # Use to_sql to create temporary table and insert data into the temporary table
+            logger.info(f"Attempting to write data to temporary table {temp_table}...")
             df.to_sql(temp_table, conn, if_exists='replace', index=False, method='multi', chunksize=1000)
             logger.info(f"Data successfully written to temporary table {temp_table}.")
             
+            # Log the start of the main table drop operation
+            logger.info(f"Attempting to drop main table {table_name}...")
             # Drop the main table if it exists
             drop_main_table_query = text(f"DROP TABLE IF EXISTS {table_name};")
             conn.execute(drop_main_table_query)
             logger.info(f"Main table {table_name} dropped.")
             
+            # Log the start of the temporary table rename operation
+            logger.info(f"Attempting to rename temporary table {temp_table} to {table_name}...")
             # Rename the temporary table to the main table
             rename_temp_table_query = text(f"ALTER TABLE {temp_table} RENAME TO {table_name};")
             conn.execute(rename_temp_table_query)
