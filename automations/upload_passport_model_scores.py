@@ -48,25 +48,26 @@ def execute_command(command):
 
 # Define a function to unnest the 'value' column
 def clean_model_scores(df):
+    logger.info("Cleaning model scores...")
     # Parse and normalize the JSON data in the specified column
     column = 'value'
     unnested_df = pd.json_normalize(df[column].apply(json.loads))
+    logger.info("JSON data parsed and normalized.")
     
     # Replace '.' with '_' in column names and convert to lowercase
     unnested_df.columns = unnested_df.columns.str.replace('.', '_').str.lower()
-    
     # Concatenate the unnested dataframe with the original dataframe
     df = pd.concat([df.drop(columns=[column]), unnested_df], axis=1)
-    
     # Rename columns 'key_0' to 'model' and 'key_1' to 'address'
     df.rename(columns={'key_0': 'model', 'key_1': 'address'}, inplace=True)
-    
     # Drop specified columns from the dataframe
     columns_to_drop = [
         'data_meta_version', 'data_meta_training_date', 'data_gas_spent',
         'data_n_days_active', 'data_n_transactions', 'data_has_safe_nft'
     ]
     df.drop(columns=columns_to_drop, inplace=True)
+    
+    logger.info("Model scores cleaned.")
     return df
 
 def upload_to_postgres(df, table_name):
