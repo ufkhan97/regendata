@@ -74,8 +74,9 @@ def upload_to_postgres(df, table_name):
     temp_table = f"{table_name}_temp"
     
     # Create SQLAlchemy engine
+    logger.info(f"Creating SQLAlchemy engine with connection string: postgresql://{DB_PARAMS['user']}:{DB_PARAMS['password']}@{DB_PARAMS['host']}:{DB_PARAMS['port']}/{DB_PARAMS['dbname']}")
     engine = create_engine(f'postgresql://{DB_PARAMS["user"]}:{DB_PARAMS["password"]}@{DB_PARAMS["host"]}:{DB_PARAMS["port"]}/{DB_PARAMS["dbname"]}')
-    
+    logger.info("SQLAlchemy engine created successfully.")
     try:
         with engine.begin() as conn:
             # Use to_sql to create temporary table and insert data into the temporary table
